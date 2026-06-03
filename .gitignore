@@ -1,55 +1,128 @@
-# Prerequisites
-*.d
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
 
-# Object files
-*.o
-*.ko
-*.obj
-*.elf
+# .NET
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.nupkg
+*.snupkg
+*.nuspec
+project.lock.json
+project.assets.json
+artifacts/
 
-# Linker output
-*.ilk
-*.map
-*.exp
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.VC.opendb
+*.opendb
 *.pdb
+*.ipch
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
 
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
-# debug information files
-*.dwo
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# NuGet
+packages/
+.nuget/
+*.nuget.props
+*.nuget.targets
+
+# Test results
+TestResults/
+coverage/
+coverage.xml
+coverage.json
+*.coverage
+*.coveragexml
+*.trx
+
+# Logs
+*.log
+logs/
+
+# Local config / secrets
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.local.json
+*.local.json
+.env
+.env.*
+secrets.json
+
+# SQLite / local database
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Publish / installer output
+publish/
+out/
+dist/
+installer/
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.exe
+*.msi
+
+# Velopack / Squirrel output
+Releases/
+*.nupkg
+*.delta.nupkg
+
+# OCR / model files
+models/
+*.onnx
+*.bin
+*.param
+*.pdmodel
+*.pdiparams
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.orig
+~$*
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated files
+Generated/
+generated/
+*.g.cs
+*.g.i.cs
+
+# User-specific overlay/adapters config
+configs/user/
+plugins/local/
