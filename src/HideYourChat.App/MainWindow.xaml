@@ -1,0 +1,158 @@
+﻿<Window x:Class="HideYourChat.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HideYourChat MVP"
+        Width="760"
+        Height="520"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0">
+            <TextBlock Text="HideYourChat MVP"
+                       FontSize="24"
+                       FontWeight="Bold"/>
+
+            <TextBlock Text="当前版本用于快速验证：Mock 消息读取 -> 去重 -> 透明置顶悬浮窗显示。"
+                       Margin="0,6,0,0"
+                       Foreground="#666666"/>
+        </StackPanel>
+
+        <WrapPanel Grid.Row="1"
+                   Margin="0,18,0,0">
+            <Button Content="启动监听"
+                    Width="100"
+                    Height="34"
+                    Margin="0,0,8,8"
+                    Click="StartButton_Click"/>
+
+            <Button Content="停止监听"
+                    Width="100"
+                    Height="34"
+                    Margin="0,0,8,8"
+                    Click="StopButton_Click"/>
+
+            <Button Content="显示悬浮窗"
+                    Width="110"
+                    Height="34"
+                    Margin="0,0,8,8"
+                    Click="ShowOverlayButton_Click"/>
+
+            <Button Content="隐藏悬浮窗"
+                    Width="110"
+                    Height="34"
+                    Margin="0,0,8,8"
+                    Click="HideOverlayButton_Click"/>
+        </WrapPanel>
+
+        <Grid Grid.Row="2"
+              Margin="0,14,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="54"/>
+
+                <ColumnDefinition Width="20"/>
+
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="150"/>
+                <ColumnDefinition Width="54"/>
+
+                <ColumnDefinition Width="20"/>
+
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="110"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="背景透明度"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0"/>
+
+            <Slider x:Name="BackgroundOpacitySlider"
+                    Grid.Column="1"
+                    Minimum="0.05"
+                    Maximum="1"
+                    Value="0.80"
+                    TickFrequency="0.05"
+                    VerticalAlignment="Center"
+                    ValueChanged="BackgroundOpacitySlider_ValueChanged"/>
+
+            <TextBlock x:Name="BackgroundOpacityValueText"
+                       Grid.Column="2"
+                       Text="80%"
+                       VerticalAlignment="Center"
+                       Margin="8,0,0,0"/>
+
+            <TextBlock Grid.Column="4"
+                       Text="文字透明度"
+                       VerticalAlignment="Center"
+                       Margin="0,0,8,0"/>
+
+            <Slider x:Name="TextOpacitySlider"
+                    Grid.Column="5"
+                    Minimum="0.20"
+                    Maximum="1"
+                    Value="1"
+                    TickFrequency="0.05"
+                    VerticalAlignment="Center"
+                    ValueChanged="TextOpacitySlider_ValueChanged"/>
+
+            <TextBlock x:Name="TextOpacityValueText"
+                       Grid.Column="6"
+                       Text="100%"
+                       VerticalAlignment="Center"
+                       Margin="8,0,0,0"/>
+
+            <TextBox x:Name="WindowKeywordBox"
+                     Grid.Column="8"
+                     Height="34"
+                     VerticalContentAlignment="Center"
+                     Text="微信"/>
+
+            <Button Grid.Column="9"
+                    Content="查找窗口"
+                    Height="34"
+                    Margin="8,0,0,0"
+                    Click="FindWindowButton_Click"/>
+        </Grid>
+
+        <GroupBox Grid.Row="3"
+                  Header="最近收到的消息"
+                  Margin="0,18,0,0">
+
+            <ListBox x:Name="RecentMessagesList"
+                     BorderThickness="0">
+
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,6">
+                            <TextBlock FontWeight="SemiBold">
+                                <Run Text="{Binding SessionName}"/>
+                                <Run Text=" · "/>
+                                <Run Text="{Binding SenderName}"/>
+                            </TextBlock>
+
+                            <TextBlock Text="{Binding Text}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </GroupBox>
+
+        <TextBlock x:Name="StatusText"
+                   Grid.Row="4"
+                   Text="状态：未启动"
+                   Margin="0,12,0,0"
+                   Foreground="#666666"/>
+    </Grid>
+</Window>
