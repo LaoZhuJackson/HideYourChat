@@ -126,3 +126,5 @@ generated/
 # User-specific overlay/adapters config
 configs/user/
 plugins/local/
+.editorconfig
+.gitattributes

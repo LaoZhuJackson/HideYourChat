@@ -22,10 +22,13 @@ public partial class OverlayWindow : Window
 
     private bool _isCollapsed;
     private int _unreadCount;
+    // 记录添加消息前用户是否在底部(用于智能滚动)
+    private bool _wasAtBottom = true;
 
     public ObservableCollection<ChatMessage> Messages { get; } = new();
 
     public event EventHandler<string>? SendRequested;
+
 
     public OverlayWindow()
     {
@@ -40,15 +43,29 @@ public partial class OverlayWindow : Window
     public void AddMessages(IEnumerable<ChatMessage> messages)
     {
         var newMessages = messages.ToList();
+        if(newMessages.Count == 0) return;
+
+        // 添加消息前判断用户是否在底部
+        _wasAtBottom = IsScrolledToBottom();
 
         foreach (var message in newMessages)
         {
-            Messages.Insert(0, message);
+            Messages.Add(message);
         }
 
         while (Messages.Count > 8)
         {
-            Messages.RemoveAt(Messages.Count - 1);
+            Messages.RemoveAt(0);
+        }
+
+        // 智能滚动
+        if(!_isCollapsed && _wasAtBottom)
+        {
+            // 延迟一帧等ui布局完成后再滚动
+            Dispatcher.InvokeAsync(() =>
+            {
+                MessageScrollViewer.ScrollToBottom();
+            }, System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
         if (_isCollapsed && newMessages.Count > 0)
@@ -56,6 +73,21 @@ public partial class OverlayWindow : Window
             _unreadCount += newMessages.Count;
             UpdateUnreadBadge();
         }
+    }
+    /// <summary>判断滚动条是否在底部(阈值 5px,允许微小误差)</summary>
+    private bool IsScrolledToBottom()
+    {
+        const double threshold = 5.0;
+        var sv = MessageScrollViewer;
+        // ExtentHeight 是内容总高度,ViewportHeight 是可见区域高度,VerticalOffset 是滚动偏移
+        return sv.VerticalOffset + sv.ViewportHeight >= sv.ExtentHeight - threshold;
+    }
+
+    private void MessageScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        // 用户主动滚动(非程序触发)时,更新 _wasAtBottom 状态
+        // ExtentHeightChange == 0 说明不是因为内容变化触发的滚动,而是用户手动滚的
+        if(e.ExtentHeightChange == 0.0) _wasAtBottom = IsScrolledToBottom();
     }
 
     public void SetBackgroundOpacity(double opacity)

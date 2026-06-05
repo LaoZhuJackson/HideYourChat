@@ -21,9 +21,9 @@ public sealed class ScreenCapture
         Process? best = null;
         foreach (var name in candidateProcessNames)
         {
-            foreach(var p in Process.GetProcessesByName(name))
+            foreach (var p in Process.GetProcessesByName(name))
             {
-                if(p.MainWindowHandle != IntPtr.Zero &&
+                if (p.MainWindowHandle != IntPtr.Zero &&
                 (best is null || p.WorkingSet64 > best.WorkingSet64))
                 {
                     best?.Dispose();
@@ -40,20 +40,20 @@ public sealed class ScreenCapture
     /// <summary>截取整个窗口。失败/最小化返回 null。调用方负责 Dispose。</summary>
     public Bitmap? CaptureWindow(IntPtr hwnd)
     {
-        if(hwnd == IntPtr.Zero) return null;
-        if(!GetWindowRect(hwnd, out var rect)) return null;
+        if (hwnd == IntPtr.Zero) return null;
+        if (!GetWindowRect(hwnd, out var rect)) return null;
 
         int width = rect.Right - rect.Left;
         int height = rect.Bottom - rect.Top;
-        if(width <=0 || height <= 0) return null;
+        if (width <= 0 || height <= 0) return null;
 
         var bitmap = new Bitmap(width, height, PixelFormat.Format32bppArgb);
-        using(var g = Graphics.FromImage(bitmap))
+        using (var g = Graphics.FromImage(bitmap))
         {
             IntPtr hdc = g.GetHdc();
             bool ok = PrintWindow(hwnd, hdc, PW_RENDERFULLCONTENT);
             g.ReleaseHdc(hdc);
-            if(!ok){bitmap.Dispose(); return null;}
+            if (!ok) { bitmap.Dispose(); return null; }
         }
         return bitmap;
     }
@@ -62,7 +62,7 @@ public sealed class ScreenCapture
     /// 按 0~1 的比例裁剪出子区域（裁掉无关 UI）。比例为经验值，需按实际窗口微调。
     /// 调用方负责 Dispose。
     /// </summary>
-    public Bitmap Crop(Bitmap full, double left, double top, double right,double bottom)
+    public Bitmap Crop(Bitmap full, double left, double top, double right, double bottom)
     {
         int x = (int)(full.Width * left);
         int y = (int)(full.Height * top);
@@ -74,10 +74,52 @@ public sealed class ScreenCapture
         w = Math.Clamp(w, 1, full.Width - x);
         h = Math.Clamp(h, 1, full.Height - y);
 
-        var cropped = new Bitmap(w,h, PixelFormat.Format32bppArgb);
+        var cropped = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         using var g = Graphics.FromImage(cropped);
-        g.DrawImage(full, new Rectangle(0,0,w,h),new Rectangle(x,y,w,h),GraphicsUnit.Pixel);
+        g.DrawImage(full, new Rectangle(0, 0, w, h), new Rectangle(x, y, w, h), GraphicsUnit.Pixel);
         return cropped;
+    }
+
+    /// <summary>
+    /// 找标题包含指定关键字的窗口(用于独立聊天窗口,标题=联系人名)。
+    /// 遍历所有顶层窗口,筛出属于指定进程且标题匹配的。
+    /// </summary>
+    public IntPtr FindWindowByTitle(IEnumerable<string> candidateProcessNames, string titleKeyword)
+    {
+        var targetPids = new HashSet<int>();
+        foreach (var name in candidateProcessNames)
+        {
+            foreach (var p in Process.GetProcessesByName(name))
+            {
+                targetPids.Add(p.Id);
+                p.Dispose();
+            }
+        }
+        if (targetPids.Count == 0) return IntPtr.Zero;
+
+        IntPtr foundHwnd = IntPtr.Zero;
+        EnumWindows((hwnd, lParam) =>
+        {
+            if(!IsWindowVisible(hwnd)) return true; //跳过不可见窗口
+            GetWindowThreadProcessId(hwnd, out int pid);
+            if(!targetPids.Contains(pid)) return true; // 不是微信进程
+
+            string title = GetWindowTitle(hwnd);
+            if(title.Contains(titleKeyword, StringComparison.OrdinalIgnoreCase))
+            {
+                foundHwnd = hwnd;
+                return false; //找到了，停止枚举
+            }
+            return true;
+        }, IntPtr.Zero);
+        return foundHwnd;
+    }
+
+    private string GetWindowTitle(IntPtr hwnd)
+    {
+        const int nChars = 256;
+        var buff = new System.Text.StringBuilder(nChars);
+        return GetWindowText(hwnd, buff, nChars) > 0 ? buff.ToString() : string.Empty;
     }
 
     [DllImport("user32.dll")]
@@ -88,6 +130,22 @@ public sealed class ScreenCapture
 
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT { public int Left, Top, Right, Bottom; }
+
+    // P/Invoke 声明
+    private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder lpString, int
+    nMaxCount);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
 
 
 }

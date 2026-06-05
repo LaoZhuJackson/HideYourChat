@@ -214,7 +214,8 @@
                               MinHeight="120"
                               VerticalScrollBarVisibility="Hidden"
                               HorizontalScrollBarVisibility="Disabled"
-                              PreviewMouseWheel="MessageScrollViewer_PreviewMouseWheel">
+                              PreviewMouseWheel="MessageScrollViewer_PreviewMouseWheel"
+                              ScrollChanged="MessageScrollViewer_ScrollChanged">
 
                     <ItemsControl ItemsSource="{Binding Messages}">
                         <ItemsControl.ItemTemplate>
