@@ -90,12 +90,18 @@ public partial class MainWindow : FluentWindow
 
             foreach (var message in messages)
             {
-                _recentMessages.Insert(0, message);
+                _recentMessages.Add(message);
             }
 
             while (_recentMessages.Count > 30)
             {
-                _recentMessages.RemoveAt(_recentMessages.Count - 1);
+                _recentMessages.RemoveAt(0);
+            }
+
+            // 让列表自动滚到最新一条
+            if (_recentMessages.Count > 0)
+            {
+                RecentMessagesList.ScrollIntoView(_recentMessages[^1]);
             }
 
             _overlayWindow?.AddMessages(messages);
@@ -129,12 +135,12 @@ public partial class MainWindow : FluentWindow
         var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信";
 
         // TODO QQ
-        if(selected == "QQ")
+        if (selected == "QQ")
         {
             StatusText.Text = "状态：QQ 适配器尚未实现，无法开始监听。";
             return;
         }
-        if(selected == "微信" && _adapter is WeChatAdapter wechat)
+        if (selected == "微信" && _adapter is WeChatAdapter wechat)
         {
             bool useStandalone = StandaloneWindowCheckBox.IsChecked == true;
             string contactName = ContactNameBox.Text.Trim();

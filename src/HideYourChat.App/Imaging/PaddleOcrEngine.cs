@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System.Collections.Concurrent;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using OpenCvSharp;
@@ -9,82 +10,83 @@ using Sdcb.PaddleOCR.Models.Local;
 
 namespace HideYourChat.App.Imaging;
 
-/// <summary>
-/// 基于 Sdcb.PaddleOCR 的实现。中文精度优于系统 OCR，但首帧要加载模型、单帧较慢。
-/// PaddleOcrAll 不是线程安全的，且构造昂贵，所以这里做成「懒加载 + 串行调用」。
-/// </summary>
 public sealed class PaddleOcrEngine : IOcrEngine, IDisposable
 {
     private readonly PaddleOcrAll? _ocr;
-    // PaddleOcrAll.Run 是同步且非线程安全的，用信号量保证一次只跑一帧
-    private readonly SemaphoreSlim _gate = new(1,1); //限制同一时刻只能有 1 个线程进入某段代码
+    private readonly BlockingCollection<Action> _queue = new();
+    private readonly Thread _worker;
 
     public PaddleOcrEngine()
     {
-        try
+        PaddleOcrAll? built = null;
+        using var ready = new ManualResetEventSlim(false);
+
+        _worker = new Thread(() =>
         {
-            FullOcrModel model = LocalFullModels.ChineseV5;
-            _ocr = new PaddleOcrAll(model, PaddleDevice.Mkldnn())
+            // 模型必须在这个专用线程上构造,之后所有 Run 也在这个线程
+            try
             {
-                AllowRotateDetection = false, //不允许检测带角度的文本，都是水平的
-                Enable180Classification = false //没有倒置的存在
-            };
-        }
-        catch
-        {
-            // 模型/原生 dll 缺失等情况，标记为不可用，让上层回退
-            _ocr = null;
-        }
+                built = new PaddleOcrAll(LocalFullModels.ChineseV5, PaddleDevice.Mkldnn())
+                {
+                    AllowRotateDetection = false,
+                    Enable180Classification = false
+                };
+            }
+            catch { built = null; }
+            ready.Set();
+
+            // 永远在本线程消费任务队列
+            foreach (var job in _queue.GetConsumingEnumerable())
+            {
+                job();
+            }
+        })
+        { IsBackground = true, Name = "PaddleOCR" };
+
+        _worker.Start();
+        ready.Wait();      // 等模型在专用线程上构造完成
+        _ocr = built;
     }
 
     public bool IsAvailable => _ocr is not null;
 
-    public async Task<IReadOnlyList<OcrLine>> RecognizeAsync(
-        Bitmap bitmap, CancellationToken cancellationToken = default
-    )
+    public Task<IReadOnlyList<OcrLine>> RecognizeAsync(Bitmap bitmap, CancellationToken ct = default)
     {
-        if(_ocr is null) return [];
-        await _gate.WaitAsync(cancellationToken);
-        try
+        if (_ocr is null) return Task.FromResult<IReadOnlyList<OcrLine>>([]);
+
+        var tcs = new TaskCompletionSource<IReadOnlyList<OcrLine>>();
+        // 把这帧的识别工作排到专用线程,而不是 Task.Run(线程池)
+        _queue.Add(() =>
         {
-            return await Task.Run(() =>
+            try
             {
-                using Mat src = BitmapToMat(bitmap);
+                using Mat src = ImageConvert.BitmapToMat(bitmap);
                 PaddleOcrResult result = _ocr.Run(src);
 
                 var lines = new List<OcrLine>(result.Regions.Length);
-                foreach (PaddleOcrResultRegion region in result.Regions)
+                foreach (var region in result.Regions)
                 {
                     var text = (region.Text ?? string.Empty).Trim();
-                    if(text.Length == 0) continue;
-                    // region.Rect 是 RotatedRect（带角度），转成轴对齐外接矩形给 OcrLine
+                    if (text.Length == 0) continue;
                     Rect box = region.Rect.BoundingRect();
-                    var bounds = new RectangleF(box.X, box.Y, box.Width, box.Height);
-                    lines.Add(new OcrLine(text, bounds));
+                    lines.Add(new OcrLine(text, new RectangleF(box.X, box.Y, box.Width, box.Height)));
                 }
-                // PaddleOCR 的 Regions 顺序不保证从上到下，聊天要按阅读顺序排
-                return (IReadOnlyList<OcrLine>)lines.OrderBy(l => l.Bounds.Top).ThenBy(l => l.Bounds.Left).ToList();
-            }, cancellationToken);
-        }
-        finally
-        {
-            _gate.Release();
-        }
-    }
-    /// <summary>
-    /// System.Drawing.Bitmap → OpenCvSharp.Mat。
-    /// 走内存 PNG 编解码，避免再引入 OpenCvSharp4.Extensions 包。
-    /// </summary>
-    private static Mat BitmapToMat(Bitmap bitmap)
-    {
-        using var ms = new MemoryStream();
-        bitmap.Save(ms, ImageFormat.Png);
-        return Cv2.ImDecode(ms.ToArray(), ImreadModes.Color);
+                tcs.SetResult(lines.OrderBy(l => l.Bounds.Top).ThenBy(l => l.Bounds.Left).ToList());
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        }, ct);
+
+        return tcs.Task;
     }
 
     public void Dispose()
     {
+        _queue.CompleteAdding();
+        _worker.Join(2000);
         _ocr?.Dispose();
-        _gate.Dispose();
+        _queue.Dispose();
     }
 }

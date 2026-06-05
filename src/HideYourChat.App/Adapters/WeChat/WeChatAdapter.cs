@@ -19,12 +19,15 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
     private const double CropLeft = 0.35, CropTop = 0.06, CropRight = 1.0, CropBottom = 0.82;
 
     // 是否监听独立聊天窗口(而不是主窗口)
-    public bool UseStandaloneChatWindow{get;set;} = false;
-    public string StandaloneChatWindowTitle{get;set;} = ""; // 要监听的联系人名
+    public bool UseStandaloneChatWindow { get; set; } = false;
+    public string StandaloneChatWindowTitle { get; set; } = ""; // 要监听的联系人名
 
     // 独立窗口裁剪比例
     private const double StandaloneCropLeft = 0.02, StandaloneCropTop = 0.057, StandaloneCropRight = 0.89, StandaloneCropBottom = 0.90;
 
+    // 避免重复ocr
+    private readonly FrameChangeDetector _frameDetector = new();
+    private IReadOnlyList<ChatMessage> _lastResult = [];   // 缓存上一帧结果
 
     private readonly WeChatSender _sender = new();
 
@@ -36,7 +39,7 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
         IntPtr hwnd;
         double cropL, cropT, cropR, cropB;
 
-        if(UseStandaloneChatWindow && !string.IsNullOrWhiteSpace(StandaloneChatWindowTitle))
+        if (UseStandaloneChatWindow && !string.IsNullOrWhiteSpace(StandaloneChatWindowTitle))
         {
             hwnd = _capture.FindWindowByTitle(WeChatProcessNames, StandaloneChatWindowTitle);
             cropL = StandaloneCropLeft; cropT = StandaloneCropTop;
@@ -53,7 +56,16 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
         using var full = _capture.CaptureWindow(hwnd);
         if (full is null) return [Info("截图失败（窗口可能被最小化或遮挡）。")];
         using var cropped = _capture.Crop(full, cropL, cropT, cropR, cropB);
-        // _debug.OpenFolder();
+
+        // 画面变化检测:没变就直接返回上次结果,跳过 OCR
+        using (var probe = ImageConvert.BitmapToMat(cropped))   // 复用 cropped 转一个 Mat
+        {
+            if (!_frameDetector.HasChanged(probe))
+            {
+                return _lastResult;   // 画面没变,沿用上次,去重服务会判定无新消息
+            }
+        }
+
         var lines = await _ocr.RecognizeAsync(cropped, cancellationToken);
         // 调试:把检测框画上去再存
         if (_debug.Enabled)
@@ -61,9 +73,10 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
             _debug.Save(full, "full");
             using var annotated = _debug.DrawBoxes(cropped, lines);
             _debug.Save(annotated, "cropped_with_boxes");
+            // _debug.OpenFolder();
         }
 
-        return lines
+        var result = lines
             .Select(l => l.Text.Trim())
             .Where(IsMeaningful)
             .Select(text => new ChatMessage
@@ -75,6 +88,9 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
                 ReceivedAt = DateTimeOffset.Now
             })
             .ToList();
+
+        _lastResult = result;
+        return result;
     }
     // 噪声过滤是“聊天适配器”的职责，留在适配器里，而不是放进通用 OCR 引擎
     private static readonly System.Text.RegularExpressions.Regex TimePattern = new(@"^\d{1,2}[:：]\d{1,2}$");
