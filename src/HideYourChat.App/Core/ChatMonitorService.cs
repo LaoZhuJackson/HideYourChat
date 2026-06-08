@@ -57,7 +57,8 @@ public sealed class ChatMonitorService
             try
             {
                 var messages = await _adapter.ReadLatestMessagesAsync(cancellationToken);
-                var newMessages = _dedupService.FilterNewMessages(messages);
+                // var newMessages = _dedupService.FilterNewMessages(messages);
+                var newMessages = messages;
 
                 if(newMessages.Count > 0) NewMessagesReceived?.Invoke(this, newMessages);
             }

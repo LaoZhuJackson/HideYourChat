@@ -94,7 +94,7 @@ public sealed class WeChatReader
 
     private static bool ShouldIgnoreText(string text)
     {
-        if (text.Length <= 1) return true;
+        if (text.Length < 1) return true;
         var ignoredTexts = new HashSet<string>
         {
             "微信",

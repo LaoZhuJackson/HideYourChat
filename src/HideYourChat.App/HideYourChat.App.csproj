@@ -25,6 +25,10 @@
     <!-- OpenCvSharp 的 Windows 原生运行时(Sdcb.PaddleOCR 依赖 OpenCvSharp,但 native 运行时要显式加) -->
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20241107" />
     <PackageReference Include="wpf-ui" Version="4.0.0" />
+    <!-- 日志系统 -->
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
   </ItemGroup>
 
 </Project>

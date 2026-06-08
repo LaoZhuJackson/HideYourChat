@@ -3,6 +3,7 @@ using FlaUI.UIA3;
 using FlaUI.UIA3.Patterns;
 using HideYourChat.App.Core;
 using HideYourChat.App.Imaging;
+using Serilog;
 
 namespace HideYourChat.App.Adapters.WeChat;
 
@@ -67,24 +68,38 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
         }
 
         var lines = await _ocr.RecognizeAsync(cropped, cancellationToken);
+        var merged = OcrLineMerger.Merge(lines); // 对同一个气泡里面的消息进行合并
+        Log.Information("合并前 {Before} 行 → 合并后 {After} 段", lines.Count, merged.Count);
+
+        IReadOnlyList<AttributedMessage> attributed;
+        if (UseStandaloneChatWindow) // 独立窗口(一对一)直接用联系人名,不需要识别
+        {
+            attributed = merged
+                .Select(l => new AttributedMessage(StandaloneChatWindowTitle, l.Text, l.Bounds))
+                .ToList();
+        }
+        else // 群聊场景:从几何识别发送者
+        {
+            attributed = SenderAttributor.Attribute(merged);
+        }
         // 调试:把检测框画上去再存
         if (_debug.Enabled)
         {
             _debug.Save(full, "full");
-            using var annotated = _debug.DrawBoxes(cropped, lines);
+            using var annotated = _debug.DrawBoxes(cropped, merged); //画合并后的框
             _debug.Save(annotated, "cropped_with_boxes");
             // _debug.OpenFolder();
         }
 
-        var result = lines
-            .Select(l => l.Text.Trim())
-            .Where(IsMeaningful)
-            .Select(text => new ChatMessage
+        var result = attributed
+            .Select(a => new { Sender = a.Sender, Text = a.Text.Trim()})
+            .Where(a => IsMeaningful(a.Text))
+            .Select(a => new ChatMessage
             {
                 AdapterId = Id,
                 SessionName = "微信",
-                SenderName = "",
-                Text = text,
+                SenderName = a.Sender,
+                Text = a.Text,
                 ReceivedAt = DateTimeOffset.Now
             })
             .ToList();
@@ -95,14 +110,15 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
     // 噪声过滤是“聊天适配器”的职责，留在适配器里，而不是放进通用 OCR 引擎
     private static readonly System.Text.RegularExpressions.Regex TimePattern = new(@"^\d{1,2}[:：]\d{1,2}$");
     private static readonly System.Text.RegularExpressions.Regex MeaningfulChar = new(@"[\u4e00-\u9fffA-Za-z]");
-    private static readonly HashSet<string> NoiseTokens = ["微信", "通讯录", "收藏", "朋友圈", "看一看", "搜一搜", "发送"];
+    // private static readonly HashSet<string> NoiseTokens = ["微信", "通讯录", "收藏", "朋友圈", "看一看", "搜一搜", "发送"];
 
     private static bool IsMeaningful(string text)
     {
-        if (string.IsNullOrWhiteSpace(text) || text.Length <= 1) return false;
-        if (TimePattern.IsMatch(text)) return false;
-        if (!MeaningfulChar.IsMatch(text)) return false;
-        return !NoiseTokens.Contains(text);
+        // if (string.IsNullOrWhiteSpace(text) || text.Length < 1) return false;
+        if (TimePattern.IsMatch(text)) return false; //不匹配时间
+        // if (!MeaningfulChar.IsMatch(text)) return false;
+        // return !NoiseTokens.Contains(text);
+        return !(string.IsNullOrWhiteSpace(text) || text.Length == 1);
     }
 
     private static ChatMessage Info(string text) => new()

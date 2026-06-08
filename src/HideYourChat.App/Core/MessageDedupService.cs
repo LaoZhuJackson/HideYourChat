@@ -7,7 +7,7 @@ public sealed class MessageDedupService
 
     private readonly int _maxKeys;
 
-    public MessageDedupService(int maxKeys = 500)
+    public MessageDedupService(int maxKeys = 50)
     {
         _maxKeys = maxKeys;
     }
