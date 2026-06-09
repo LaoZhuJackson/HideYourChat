@@ -33,40 +33,50 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
             </Grid.ColumnDefinitions>
             <ui:Button x:Name="StartButton"
                     Grid.Column="0"
                     Content="启动监听"
                     Icon="{ui:SymbolIcon Play24}"
                     Appearance="Primary"
-                    Width="117" Height="34"
-                    Margin="0,0,0,0"
+                    HorizontalAlignment="Stretch"
+                    Height="34"
+                    Margin="0,0,4,0"
                     Click="StartButton_Click"/>
 
             <ui:Button x:Name="StopButton"
                     Content="停止监听"
                     Grid.Column="1"
                     Icon="{ui:SymbolIcon Pause24}"
-                    Width="117"
+                    HorizontalAlignment="Stretch"
                     Height="34"
-                    Margin="0,0,0,0"
+                    Margin="0,0,4,0"
                     Click="StopButton_Click"/>
 
             <ui:Button Content="显示悬浮窗"
                     Grid.Column="2"
                     Icon="{ui:SymbolIcon Eye24}"
-                    Width="117"
+                    HorizontalAlignment="Stretch"
                     Height="34"
-                    Margin="0,0,0,0"
+                    Margin="0,0,4,0"
                     Click="ShowOverlayButton_Click"/>
 
             <ui:Button Content="隐藏悬浮窗"
                     Grid.Column="3"
                     Icon="{ui:SymbolIcon EyeOff24}"
-                    Width="117"
                     Height="34"
-                    Margin="0,0,0,0"
+                    Margin="0,0,4,0"
+                    HorizontalAlignment="Stretch"
                     Click="HideOverlayButton_Click"/>
+            
+            <ui:Button x:Name="ToggleThemeButton"
+                    Grid.Column="4"
+                    Icon="{ui:SymbolIcon WeatherMoon24}"
+                    Width="40"
+                    Height="34"
+                    ToolTip="切换深/浅色主题"
+                    Click="ToggleThemeButton_Click"/>
         </Grid>
 
         <!-- Row 2：查找窗口 -->

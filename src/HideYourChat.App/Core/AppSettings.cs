@@ -17,4 +17,5 @@ public sealed class AppSettings
     public double OverlayTop { get; set; } = double.NaN;
     public double OverlayWidth { get; set; } = 480;
     public double OverlayHeight { get; set; } = 380;
+    public bool IsDarkTheme {get; set; } = true;
 }

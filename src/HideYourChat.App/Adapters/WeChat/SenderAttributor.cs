@@ -1,7 +1,7 @@
-using System.Drawing;
+using HideYourChat.App.Imaging;
 using Serilog;
 
-namespace HideYourChat.App.Imaging;
+namespace HideYourChat.App.Adapters;
 
 /// <summary>带发送者归属的消息段。发送者识别失败时 Sender 为空字符串。</summary>
 public sealed record AttributedMessage(string Sender, string Text, System.Drawing.RectangleF Bounds);

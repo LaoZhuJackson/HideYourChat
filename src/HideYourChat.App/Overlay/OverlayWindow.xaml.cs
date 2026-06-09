@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using HideYourChat.App.Core;
+using Windows.Devices.SerialCommunication;
 
 namespace HideYourChat.App.Overlay;
 
@@ -17,6 +18,46 @@ public partial class OverlayWindow : Window
 
     private double _backgroundOpacity = 0.80;
     private double _textOpacity = 1.00;
+    private bool _isDark = true;
+    // 画刷跟随哪条透明度轴
+    private enum Axis { Background, Text };
+    /// <summary>
+    /// 一种画刷的"配方":深/浅两套基础 RGB + 跟随的透明度轴 + 由该轴不透明度算 alpha 的参数。
+    /// 最终 alpha = Clamp(opacity * Mul + Add, Min, Max)。把颜色和透明度两个维度彻底拆开。
+    /// </summary>
+    private sealed record BrushSpec(
+        Color Dark, Color Light, Axis Axis,
+        double Mul, double Add, double Min, double Max
+    );
+    // 资源键 → 配方。颜色只在这里定义一份,XAML 里的 <SolidColorBrush> 仅作设计期占位。
+    private static readonly IReadOnlyDictionary<string, BrushSpec> BrushSpecs =
+        new Dictionary<string, BrushSpec>
+        {
+            // 背景族(跟随 _backgroundOpacity)
+            ["OverlayBackgroundBrush"] = new(Rgb(0x11, 0x11, 0x11), Rgb(0xF5, 0xF5, 0xF5),
+    Axis.Background, 1.00, 0.00, 0.01, 1.00),
+            ["MessageCardBackgroundBrush"] = new(Rgb(0x11, 0x11, 0x11), Rgb(0x00, 0x00, 0x00),
+    Axis.Background, 0.45, 0.00, 0.01, 0.75),
+            ["BadgeBackgroundBrush"] = new(Rgb(0x3A, 0x3A, 0x3A), Rgb(0xC0, 0xC0, 0xC0),
+    Axis.Background, 1.00, 0.10, 0.01, 1.00),
+            ["ControlBackgroundBrush"] = new(Rgb(0x33, 0x33, 0x33), Rgb(0xDD, 0xDD, 0xDD),
+    Axis.Background, 0.75, 0.00, 0.01, 0.95),
+            ["ControlHoverBackgroundBrush"] = new(Rgb(0x44, 0x44, 0x44), Rgb(0xCC, 0xCC, 0xCC),
+    Axis.Background, 0.85, 0.00, 0.01, 1.00),
+            ["ControlPressedBackgroundBrush"] = new(Rgb(0x22, 0x22, 0x22), Rgb(0xBB, 0xBB, 0xBB),
+    Axis.Background, 0.95, 0.00, 0.01, 1.00),
+            ["ControlBorderBrush"] = new(Rgb(0x66, 0x66, 0x66), Rgb(0xAA, 0xAA, 0xAA),
+    Axis.Background, 0.70, 0.00, 0.01, 0.90),
+            ["ControlFocusedBorderBrush"] = new(Rgb(0x88, 0x88, 0x88), Rgb(0x88, 0x88, 0x88),
+    Axis.Background, 0.95, 0.00, 0.01, 1.00),
+            // 文字族(跟随 _textOpacity)
+            ["PrimaryTextBrush"] = new(Rgb(0xFF, 0xFF, 0xFF), Rgb(0x22, 0x22, 0x22), Axis.Text,
+         1.00, 0.00, 0.01, 1.00),
+            ["SecondaryTextBrush"] = new(Rgb(0xFF, 0xFF, 0xFF), Rgb(0x22, 0x22, 0x22), Axis.Text,
+         0.70, 0.00, 0.01, 1.00),
+        };
+
+    private static Color Rgb(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
 
     private const int CollapsedSize = 72;
 
@@ -36,14 +77,13 @@ public partial class OverlayWindow : Window
 
         DataContext = this;
 
-        SetBackgroundOpacity(0.80);
-        SetTextOpacity(1.00);
+        ApplyAppearance();
     }
 
     public void AddMessages(IEnumerable<ChatMessage> messages)
     {
         var newMessages = messages.ToList();
-        if(newMessages.Count == 0) return;
+        if (newMessages.Count == 0) return;
 
         // 添加消息前判断用户是否在底部
         _wasAtBottom = IsScrolledToBottom();
@@ -59,7 +99,7 @@ public partial class OverlayWindow : Window
         }
 
         // 智能滚动
-        if(!_isCollapsed && _wasAtBottom)
+        if (!_isCollapsed && _wasAtBottom)
         {
             // 延迟一帧等ui布局完成后再滚动
             Dispatcher.InvokeAsync(() =>
@@ -87,71 +127,19 @@ public partial class OverlayWindow : Window
     {
         // 用户主动滚动(非程序触发)时,更新 _wasAtBottom 状态
         // ExtentHeightChange == 0 说明不是因为内容变化触发的滚动,而是用户手动滚的
-        if(e.ExtentHeightChange == 0.0) _wasAtBottom = IsScrolledToBottom();
+        if (e.ExtentHeightChange == 0.0) _wasAtBottom = IsScrolledToBottom();
     }
 
     public void SetBackgroundOpacity(double opacity)
     {
         _backgroundOpacity = Math.Clamp(opacity, 0.01, 1.0);
-
-        SetBrushAlpha("OverlayBackgroundBrush", _backgroundOpacity);
-
-        SetBrushAlpha(
-            "MessageCardBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.45, 0.01, 0.75));
-
-        SetBrushAlpha(
-            "BadgeBackgroundBrush",
-            Math.Clamp(_backgroundOpacity + 0.10, 0.01, 1.0));
-
-        // 控件背景和边框也跟随背景透明度
-        SetBrushAlpha(
-            "ControlBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.75, 0.01, 0.95));
-
-        SetBrushAlpha(
-            "ControlHoverBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.85, 0.01, 1.0));
-
-        SetBrushAlpha(
-            "ControlPressedBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.95, 0.01, 1.0));
-
-        SetBrushAlpha(
-            "ControlBorderBrush",
-            Math.Clamp(_backgroundOpacity * 0.70, 0.01, 0.90));
-
-        SetBrushAlpha(
-            "ControlFocusedBorderBrush",
-            Math.Clamp(_backgroundOpacity * 0.95, 0.01, 1.0));
+        ApplyAppearance();
     }
 
     public void SetTextOpacity(double opacity)
     {
         _textOpacity = Math.Clamp(opacity, 0.01, 1.0);
-
-        SetBrushAlpha("PrimaryTextBrush", _textOpacity);
-        SetBrushAlpha("SecondaryTextBrush", Math.Clamp(_textOpacity * 0.70, 0.01, 1.0));
-    }
-
-    private void SetBrushAlpha(string resourceKey, double opacity)
-    {
-        if (Resources[resourceKey] is not SolidColorBrush oldBrush)
-        {
-            return;
-        }
-
-        var alpha = (byte)Math.Round(Math.Clamp(opacity, 0.0, 1.0) * 255);
-
-        var oldColor = oldBrush.Color;
-
-        var newBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(
-            alpha,
-            oldColor.R,
-            oldColor.G,
-            oldColor.B));
-
-        Resources[resourceKey] = newBrush;
+        ApplyAppearance();
     }
 
     public void SetReplyStatus(string text)
@@ -300,16 +288,16 @@ public partial class OverlayWindow : Window
         // 只返回展开时的数据
         double w = _isCollapsed ? _lastExpandedWidth : Width;
         double h = _isCollapsed ? _lastExpandedHeight : Height;
-        return (Left,Top, w, h);
+        return (Left, Top, w, h);
     }
     /// <summary>应用保存的位置和尺寸。位置不合法(NaN 或在屏幕外)时居中回退</summary>
     public void ApplyPersistedBounds(double left, double top, double width, double height)
     {
         // 尺寸：有合理值就用，否则保持默认
-        if(width > 0) {Width = width; _lastExpandedWidth = width;}
-        if(height > 0) {Height = height; _lastExpandedHeight = height;}
+        if (width > 0) { Width = width; _lastExpandedWidth = width; }
+        if (height > 0) { Height = height; _lastExpandedHeight = height; }
         // 位置：校验是否在可见屏内
-        if(!double.IsNaN(left) && !double.IsNaN(top) && IsOnScreen(left, top, Width, Height))
+        if (!double.IsNaN(left) && !double.IsNaN(top) && IsOnScreen(left, top, Width, Height))
         {
             WindowStartupLocation = WindowStartupLocation.Manual;
             Left = left;
@@ -331,6 +319,32 @@ public partial class OverlayWindow : Window
         const double margin = 50;
         return left >= vLeft + margin && left <= vRight - margin &&
                 top >= vTop + margin && top <= vBottom - margin;
+    }
+
+    public void ApplyTheme(bool dark)
+    {
+        _isDark = dark;
+        ApplyAppearance();
+    }
+    
+    /// <summary>
+    /// 按当前(主题 + 两条透明度)重算所有画刷,一次性写回资源。
+    /// 主题切换、背景透明度、文字透明度,全部走这一个出口
+    /// </summary>
+    private void ApplyAppearance()
+    {
+        foreach(var(key, spec) in BrushSpecs)
+        {
+            Color rgb = _isDark ? spec.Dark : spec.Light;
+            double axisOpacity = spec.Axis == Axis.Background ? _backgroundOpacity : _textOpacity;
+
+            double a = Math.Clamp(axisOpacity * spec.Mul + spec.Add, spec.Min, spec.Max);
+            byte alpha = (byte)Math.Round(a * 255);
+
+            var brush = new SolidColorBrush(Color.FromArgb(alpha, rgb.R, rgb.G, rgb.B));
+            brush.Freeze(); // 整只替换、不再改 → 冻结省一点开销
+            Resources[key] = brush;
+        }
     }
 
     protected override void OnClosed(EventArgs e)

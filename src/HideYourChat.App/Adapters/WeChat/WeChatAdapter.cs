@@ -1,4 +1,5 @@
 ﻿
+using System.Windows.Shapes;
 using FlaUI.UIA3;
 using FlaUI.UIA3.Patterns;
 using HideYourChat.App.Core;
@@ -69,19 +70,7 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
 
         var lines = await _ocr.RecognizeAsync(cropped, cancellationToken);
         var merged = OcrLineMerger.Merge(lines); // 对同一个气泡里面的消息进行合并
-        Log.Information("合并前 {Before} 行 → 合并后 {After} 段", lines.Count, merged.Count);
-
-        IReadOnlyList<AttributedMessage> attributed;
-        if (UseStandaloneChatWindow) // 独立窗口(一对一)直接用联系人名,不需要识别
-        {
-            attributed = merged
-                .Select(l => new AttributedMessage(StandaloneChatWindowTitle, l.Text, l.Bounds))
-                .ToList();
-        }
-        else // 群聊场景:从几何识别发送者
-        {
-            attributed = SenderAttributor.Attribute(merged);
-        }
+        // Log.Information("合并前 {Before} 行 → 合并后 {After} 段", lines.Count, merged.Count);
         // 调试:把检测框画上去再存
         if (_debug.Enabled)
         {
@@ -90,19 +79,39 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
             _debug.Save(annotated, "cropped_with_boxes");
             // _debug.OpenFolder();
         }
+        // 对每条消息采样气泡颜色，判断发送方
+        var sided = merged.Select(m =>
+        {
+            var color = BubbleColorSampler.Sample(cropped, m.Bounds);
+            var side = BubbleClassifier.Classify(color);
+            return (Line: m, side: side);
+        }).ToList();
 
-        var result = attributed
-            .Select(a => new { Sender = a.Sender, Text = a.Text.Trim()})
-            .Where(a => IsMeaningful(a.Text))
-            .Select(a => new ChatMessage
+        // 根据场景和归属方确定senderName
+        var result = new List<ChatMessage>();
+        foreach(var (line, side) in sided)
+        {
+            var text = line.Text.Trim();
+            if(!IsMeaningful(text)) continue;
+
+            string sender = side switch
+            {
+                MessageSide.Mine => "我",
+                MessageSide.Other => UseStandaloneChatWindow 
+                                        ? StandaloneChatWindowTitle // 独立窗口:对方=联系人名
+                                        : "对方", // 主窗口群聊:暂时统称,后续可接昵称识别
+                _ => ""
+            };
+
+            result.Add(new ChatMessage
             {
                 AdapterId = Id,
                 SessionName = "微信",
-                SenderName = a.Sender,
-                Text = a.Text,
+                SenderName = sender,
+                Text = text,
                 ReceivedAt = DateTimeOffset.Now
-            })
-            .ToList();
+            });
+        }
 
         _lastResult = result;
         return result;

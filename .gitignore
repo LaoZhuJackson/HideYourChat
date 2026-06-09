@@ -122,6 +122,7 @@ Generated/
 generated/
 *.g.cs
 *.g.i.cs
+CLAUDE.md
 
 # User-specific overlay/adapters config
 configs/user/

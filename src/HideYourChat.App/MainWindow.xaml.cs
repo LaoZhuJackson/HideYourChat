@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.Reflection.Metadata;
 using System.Windows;
 using System.Windows.Controls;
+using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
 namespace HideYourChat.App;
@@ -42,6 +43,7 @@ public partial class MainWindow : FluentWindow
         ReBuildAdapter(_settings.SelectedApp);
 
         ApplySettingsToUi(); // 把配置回填到各控件
+        UpdateThemeButtonIcon(_settings.IsDarkTheme);
 
         SetConfigPanelEnabled(true);
     }
@@ -70,6 +72,9 @@ public partial class MainWindow : FluentWindow
 
         StandaloneWindowPanel.Visibility =
             _settings.SelectedApp == "微信" ? Visibility.Visible : Visibility.Collapsed;
+        
+        // 应用主题
+        ApplicationThemeManager.Apply(_settings.IsDarkTheme ? ApplicationTheme.Dark : ApplicationTheme.Light);
     }
 
     /// <summary>根据选择的聊天软件,重建适配器和监听服务。仅在未监听时调用。</summary>
@@ -172,6 +177,9 @@ public partial class MainWindow : FluentWindow
         _settings.ContactName = ContactNameBox.Text.Trim();
         _settings.BackgroundOpacity = _backgroundOpacity;
         _settings.TextOpacity = _textOpacity;
+
+        // 以当前实际生效的主题为准落盘
+        _settings.IsDarkTheme = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
 
         // overlay 得判空，不存在则保留上次的值（不覆盖）
         if(_overlayWindow is not null)
@@ -373,23 +381,26 @@ public partial class MainWindow : FluentWindow
         }
     }
 
-    //private void FindWindowButton_Click(object sender, RoutedEventArgs e)
-    //{
-    //    var keyword = WindowKeywordBox.Text.Trim();
+    private void ToggleThemeButton_Click(object sender, RoutedEventArgs e)
+    {
+        var current = ApplicationThemeManager.GetAppTheme();
+        var target = current == ApplicationTheme.Dark ? ApplicationTheme.Light : ApplicationTheme.Dark;
+        ApplicationThemeManager.Apply(target);
 
-    //    var windows = WindowFinder.FindByTitleKeyword(keyword);
+        bool dark = target == ApplicationTheme.Dark;
+        _overlayWindow?.ApplyTheme(dark); // 同步给overlap
+        _settings.IsDarkTheme = dark; // 存入配置
+        UpdateThemeButtonIcon(dark);
+    }
 
-    //    if (windows.Count == 0)
-    //    {
-    //        StatusText.Text = $"状态：没有找到标题包含“{keyword}”的窗口。";
-    //        return;
-    //    }
-
-    //    var first = windows[0];
-
-    //    StatusText.Text =
-    //        $"状态：找到 {windows.Count} 个窗口。第一个：{first.Title}，句柄：0x{first.Handle.ToInt64():X}";
-    //}
+    private void UpdateThemeButtonIcon(bool dark)
+    {
+        // 深色给月亮，浅色给太阳
+        ToggleThemeButton.Icon = new Wpf.Ui.Controls.SymbolIcon(
+            dark ? Wpf.Ui.Controls.SymbolRegular.WeatherMoon24
+                    : Wpf.Ui.Controls.SymbolRegular.WeatherSunny24
+        );
+    }
 
     protected override async void OnClosed(EventArgs e)
     {
