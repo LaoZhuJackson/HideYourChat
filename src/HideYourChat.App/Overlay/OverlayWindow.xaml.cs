@@ -92,46 +92,46 @@ public partial class OverlayWindow : Window
 
     public void SetBackgroundOpacity(double opacity)
     {
-        _backgroundOpacity = Math.Clamp(opacity, 0.05, 1.0);
+        _backgroundOpacity = Math.Clamp(opacity, 0.01, 1.0);
 
         SetBrushAlpha("OverlayBackgroundBrush", _backgroundOpacity);
 
         SetBrushAlpha(
             "MessageCardBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.45, 0.05, 0.75));
+            Math.Clamp(_backgroundOpacity * 0.45, 0.01, 0.75));
 
         SetBrushAlpha(
             "BadgeBackgroundBrush",
-            Math.Clamp(_backgroundOpacity + 0.10, 0.10, 1.0));
+            Math.Clamp(_backgroundOpacity + 0.10, 0.01, 1.0));
 
         // 控件背景和边框也跟随背景透明度
         SetBrushAlpha(
             "ControlBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.75, 0.08, 0.95));
+            Math.Clamp(_backgroundOpacity * 0.75, 0.01, 0.95));
 
         SetBrushAlpha(
             "ControlHoverBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.85, 0.10, 1.0));
+            Math.Clamp(_backgroundOpacity * 0.85, 0.01, 1.0));
 
         SetBrushAlpha(
             "ControlPressedBackgroundBrush",
-            Math.Clamp(_backgroundOpacity * 0.95, 0.12, 1.0));
+            Math.Clamp(_backgroundOpacity * 0.95, 0.01, 1.0));
 
         SetBrushAlpha(
             "ControlBorderBrush",
-            Math.Clamp(_backgroundOpacity * 0.70, 0.08, 0.90));
+            Math.Clamp(_backgroundOpacity * 0.70, 0.01, 0.90));
 
         SetBrushAlpha(
             "ControlFocusedBorderBrush",
-            Math.Clamp(_backgroundOpacity * 0.95, 0.15, 1.0));
+            Math.Clamp(_backgroundOpacity * 0.95, 0.01, 1.0));
     }
 
     public void SetTextOpacity(double opacity)
     {
-        _textOpacity = Math.Clamp(opacity, 0.20, 1.0);
+        _textOpacity = Math.Clamp(opacity, 0.01, 1.0);
 
         SetBrushAlpha("PrimaryTextBrush", _textOpacity);
-        SetBrushAlpha("SecondaryTextBrush", Math.Clamp(_textOpacity * 0.70, 0.15, 1.0));
+        SetBrushAlpha("SecondaryTextBrush", Math.Clamp(_textOpacity * 0.70, 0.01, 1.0));
     }
 
     private void SetBrushAlpha(string resourceKey, double opacity)
@@ -145,7 +145,7 @@ public partial class OverlayWindow : Window
 
         var oldColor = oldBrush.Color;
 
-        var newBrush = new SolidColorBrush(Color.FromArgb(
+        var newBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(
             alpha,
             oldColor.R,
             oldColor.G,
@@ -228,7 +228,7 @@ public partial class OverlayWindow : Window
         SendCurrentReply();
     }
 
-    private void ReplyTextBox_KeyDown(object sender, KeyEventArgs e)
+    private void ReplyTextBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
         {
@@ -292,6 +292,45 @@ public partial class OverlayWindow : Window
         scrollViewer.ScrollToVerticalOffset(nextOffset);
 
         e.Handled = true;
+    }
+
+    /// <summary>读取当前应持久化的位置和展开尺寸,交给上层保存</summary>
+    public (double Left, double Top, double Width, double Height) GetPersistedBounds()
+    {
+        // 只返回展开时的数据
+        double w = _isCollapsed ? _lastExpandedWidth : Width;
+        double h = _isCollapsed ? _lastExpandedHeight : Height;
+        return (Left,Top, w, h);
+    }
+    /// <summary>应用保存的位置和尺寸。位置不合法(NaN 或在屏幕外)时居中回退</summary>
+    public void ApplyPersistedBounds(double left, double top, double width, double height)
+    {
+        // 尺寸：有合理值就用，否则保持默认
+        if(width > 0) {Width = width; _lastExpandedWidth = width;}
+        if(height > 0) {Height = height; _lastExpandedHeight = height;}
+        // 位置：校验是否在可见屏内
+        if(!double.IsNaN(left) && !double.IsNaN(top) && IsOnScreen(left, top, Width, Height))
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = left;
+            Top = top;
+        }
+        // 否则使用默认位置
+    }
+
+    /// <summary>判断矩形是否大致落在所有显示器组成的虚拟屏幕内</summary>
+    private static bool IsOnScreen(double left, double top, double width, double height)
+    {
+        // 虚拟屏幕 = 所有显示器拼出的大矩形（WPF自带）
+        double vLeft = SystemParameters.VirtualScreenLeft;
+        double vTop = SystemParameters.VirtualScreenTop;
+        double vRight = vLeft + SystemParameters.VirtualScreenWidth;
+        double vBottom = vTop + SystemParameters.VirtualScreenHeight;
+
+        // 窗口左上角在虚拟屏幕范围内,且至少留一部分可见(留 50px 余量防止贴边拖不回来)
+        const double margin = 50;
+        return left >= vLeft + margin && left <= vRight - margin &&
+                top >= vTop + margin && top <= vBottom - margin;
     }
 
     protected override void OnClosed(EventArgs e)

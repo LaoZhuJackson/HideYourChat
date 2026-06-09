@@ -128,3 +128,4 @@ configs/user/
 plugins/local/
 .editorconfig
 .gitattributes
+.claude

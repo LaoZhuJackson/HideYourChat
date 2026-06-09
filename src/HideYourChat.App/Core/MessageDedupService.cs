@@ -1,3 +1,5 @@
+using Serilog;
+
 namespace HideYourChat.App.Core;
 
 public sealed class MessageDedupService
@@ -18,7 +20,7 @@ public sealed class MessageDedupService
         foreach(var message in messages)
         {
             var key = message.CreateDedupKey(); // 将消息转换为唯一key，用于后续去重
-
+            Log.Debug("dedup key = {Key}", key);
             if (_seenKeys.Contains(key))
             {
                 continue;

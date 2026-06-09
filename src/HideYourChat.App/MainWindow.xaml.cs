@@ -24,20 +24,54 @@ public partial class MainWindow : FluentWindow
     private double _backgroundOpacity = 0.80;
     private double _textOpacity = 1.00;
 
+    // 配置文件
+    private readonly SettingsService _settingsService = new();
+    private AppSettings _settings = new();
+
     public MainWindow()
     {
         InitializeComponent();
 
         RecentMessagesList.ItemsSource = _recentMessages;
 
-        //默认使用微信进行初始化
-        ReBuildAdapter("微信");
+        _settings = _settingsService.Load();
 
-        BackgroundOpacityValueText.Text = $"{_backgroundOpacity:P0}";
-        TextOpacityValueText.Text = $"{_textOpacity:P0}";
+        _backgroundOpacity = _settings.BackgroundOpacity;
+        _textOpacity = _settings.TextOpacity;
+
+        ReBuildAdapter(_settings.SelectedApp);
+
+        ApplySettingsToUi(); // 把配置回填到各控件
 
         SetConfigPanelEnabled(true);
     }
+
+    /// <summary>把已加载的配置回填到界面控件上。</summary>
+    private void ApplySettingsToUi()
+    {
+        // 下拉框选中的软件
+        foreach (ComboBoxItem item in AdapterComboBox.Items)
+        {
+            if ((item.Content?.ToString() ?? "") == _settings.SelectedApp)
+            {
+                AdapterComboBox.SelectedItem = item;
+                break;
+            }
+        }
+
+        StandaloneWindowCheckBox.IsChecked = _settings.UseStandaloneChatWindow;
+        ContactNameBox.Text = _settings.ContactName;
+        ContactNameBox.IsEnabled = _settings.UseStandaloneChatWindow;
+
+        BackgroundOpacitySlider.Value = _settings.BackgroundOpacity;
+        TextOpacitySlider.Value = _settings.TextOpacity;
+        BackgroundOpacityValueText.Text = $"{_backgroundOpacity:P0}";
+        TextOpacityValueText.Text = $"{_textOpacity:P0}";
+
+        StandaloneWindowPanel.Visibility =
+            _settings.SelectedApp == "微信" ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     /// <summary>根据选择的聊天软件,重建适配器和监听服务。仅在未监听时调用。</summary>
     private void ReBuildAdapter(string appName)
     {
@@ -66,6 +100,12 @@ public partial class MainWindow : FluentWindow
         _overlayWindow = new OverlayWindow();
         _overlayWindow.SetBackgroundOpacity(_backgroundOpacity);
         _overlayWindow.SetTextOpacity(_textOpacity);
+
+        // 应用保存的位置和尺寸
+        _overlayWindow.ApplyPersistedBounds(
+            _settings.OverlayLeft, _settings.OverlayTop,
+            _settings.OverlayWidth, _settings.OverlayHeight
+        );
 
         _overlayWindow.SendRequested += OverlayWindow_SendRequested;
 
@@ -122,6 +162,29 @@ public partial class MainWindow : FluentWindow
             StatusText.Text = $"状态：监听异常：{error}";
         });
     }
+    /// <summary>
+    /// 保存设置
+    /// </summary>
+    private void SaveCurrentSettings()
+    {
+        _settings.SelectedApp = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信";
+        _settings.UseStandaloneChatWindow = StandaloneWindowCheckBox.IsChecked == true;
+        _settings.ContactName = ContactNameBox.Text.Trim();
+        _settings.BackgroundOpacity = _backgroundOpacity;
+        _settings.TextOpacity = _textOpacity;
+
+        // overlay 得判空，不存在则保留上次的值（不覆盖）
+        if(_overlayWindow is not null)
+        {
+            var (left,top,width,height) = _overlayWindow.GetPersistedBounds();
+            _settings.OverlayLeft = left;
+            _settings.OverlayTop = top;
+            _settings.OverlayWidth = width;
+            _settings.OverlayHeight = height;
+        }
+
+        _settingsService.Save(_settings);
+    }
 
     private void StartButton_Click(object sender, RoutedEventArgs e)
     {
@@ -175,7 +238,8 @@ public partial class MainWindow : FluentWindow
             }
         }
 
-        // 校验通过，锁定配置区，启动监听
+        // 校验通过，锁定配置区，保存用户配置
+        SaveCurrentSettings();
         SetConfigPanelEnabled(false);
 
         EnsureOverlayWindow();
@@ -329,12 +393,10 @@ public partial class MainWindow : FluentWindow
 
     protected override async void OnClosed(EventArgs e)
     {
+        SaveCurrentSettings();          // 退出前兜底保存
         await _monitorService.StopAsync();
-
         (_adapter as IDisposable)?.Dispose();
-
         _overlayWindow?.Close();
-
         base.OnClosed(e);
     }
 }

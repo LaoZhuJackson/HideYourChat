@@ -120,10 +120,10 @@
 
             <Slider x:Name="BackgroundOpacitySlider"
             Grid.Column="1"
-            Minimum="0.05"
+            Minimum="0.01"
             Maximum="1"
             Value="0.80"
-            TickFrequency="0.05"
+            TickFrequency="0.01"
             VerticalAlignment="Center"
             ValueChanged="BackgroundOpacitySlider_ValueChanged"/>
 
@@ -149,10 +149,10 @@
 
             <Slider x:Name="TextOpacitySlider"
             Grid.Column="1"
-            Minimum="0.20"
+            Minimum="0.01"
             Maximum="1"
             Value="1"
-            TickFrequency="0.05"
+            TickFrequency="0.01"
             VerticalAlignment="Center"
             ValueChanged="TextOpacitySlider_ValueChanged"/>
 

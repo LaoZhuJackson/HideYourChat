@@ -26,7 +26,7 @@ public sealed class FrameChangeDetector
         using var gray = new Mat(); // using关键字确保方法结束时会自动调用 .Dispose() 释放 Mat
         Cv2.CvtColor(current, gray, ColorConversionCodes.BGR2GRAY);
         using var small = new Mat();
-        Cv2.Resize(gray, small, new Size(_size, _size));
+        Cv2.Resize(gray, small, new OpenCvSharp.Size(_size, _size));
 
         if(_previous is null)
         {
