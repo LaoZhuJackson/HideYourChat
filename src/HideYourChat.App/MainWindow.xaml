@@ -4,8 +4,8 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="HideYourChat"
         Icon="pack://application:,,,/assets/icons/icon_no_background.png"
-        Width="510"
-        Height="560"
+        Width="550"
+        Height="600"
         ExtendsContentIntoTitleBar="True"
         WindowBackdropType="Mica"
         WindowStartupLocation="CenterScreen">
@@ -178,7 +178,8 @@
                   Margin="5,18,5,0">
 
             <ListBox x:Name="RecentMessagesList"
-                     BorderThickness="0">
+                     BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
                 <ListBox.ItemTemplate>
                     <DataTemplate>

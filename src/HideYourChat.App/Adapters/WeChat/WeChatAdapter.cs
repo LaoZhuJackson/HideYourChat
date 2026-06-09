@@ -1,7 +1,7 @@
 ﻿
 using System.Windows.Shapes;
 using FlaUI.UIA3;
-using FlaUI.UIA3.Patterns;
+using System.Drawing;
 using HideYourChat.App.Core;
 using HideYourChat.App.Imaging;
 using Serilog;
@@ -18,7 +18,12 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
     // private readonly IOcrEngine _ocr = new WindowsOcrEngine();
     private readonly IOcrEngine _ocr = new PaddleOcrEngine();
     private static readonly string[] WeChatProcessNames = ["Weixin", "WeChat", "微信", "WXWork"];
-    private const double CropLeft = 0.35, CropTop = 0.06, CropRight = 1.0, CropBottom = 0.82;
+    private const double CropLeft = 0.35, CropTop = 0.09, CropRight = 1.0, CropBottom = 0.82;
+    // 单聊联系人名称裁剪区域
+    private const double TitleCropLeft = 0.35, TitleCropTop = 0.045, TitleCropRight = 0.72, TitleCropBottom = 0.09;
+    private readonly FrameChangeDetector _titleFrameDetector = new();
+    private string _lastSessionTitle = "";
+    private static readonly System.Text.RegularExpressions.Regex GroupCountSuffix = new(@"\s*[\(（]\d+[\)）]\s*$");
 
     // 是否监听独立聊天窗口(而不是主窗口)
     public bool UseStandaloneChatWindow { get; set; } = false;
@@ -79,35 +84,52 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
             _debug.Save(annotated, "cropped_with_boxes");
             // _debug.OpenFolder();
         }
-        // 对每条消息采样气泡颜色，判断发送方
-        var sided = merged.Select(m =>
-        {
-            var color = BubbleColorSampler.Sample(cropped, m.Bounds);
-            var side = BubbleClassifier.Classify(color);
-            return (Line: m, side: side);
-        }).ToList();
 
         // 根据场景和归属方确定senderName
+        var attributed = SenderAttributor.Attribute(merged); // 先做群聊昵称归属:昵称行被"消化"掉,只剩正文段
+        
+        // 会话标题:独立窗口=已知联系人名(免 OCR);主窗口=OCR 顶部标题条
+        string sessionTitle = UseStandaloneChatWindow
+            ? StandaloneChatWindowTitle
+            : await ReadMainSessionTitleAsync(full, cancellationToken);
+        
+        // 判断是否为群聊
+        bool isGroup = attributed.Any(m => !string.IsNullOrWhiteSpace(m.Sender));
+        
         var result = new List<ChatMessage>();
-        foreach(var (line, side) in sided)
+
+        foreach(var msg in attributed)
         {
-            var text = line.Text.Trim();
+            var text = msg.Text.Trim();
             if(!IsMeaningful(text)) continue;
 
-            string sender = side switch
+            // 判断左右
+            var color = BubbleColorSampler.Sample(cropped, msg.Bounds);
+            var side = BubbleClassifier.Classify(color);
+
+            // 发送人昵称
+            string senderName = side switch
             {
                 MessageSide.Mine => "我",
-                MessageSide.Other => UseStandaloneChatWindow 
-                                        ? StandaloneChatWindowTitle // 独立窗口:对方=联系人名
-                                        : "对方", // 主窗口群聊:暂时统称,后续可接昵称识别
+                MessageSide.Other => !string.IsNullOrWhiteSpace(msg.Sender) 
+                    ? msg.Sender  // 群聊:OCR 到的群成员昵称
+                    : (string.IsNullOrWhiteSpace(sessionTitle) 
+                    ? "对方" 
+                    : sessionTitle), // 单聊:联系人名
                 _ => ""
             };
+            // 会话名：群聊="群名*群成员名",单聊="联系人名"
+            string sessionName = isGroup
+                ? $"{(string.IsNullOrWhiteSpace(sessionTitle) ? "群聊" : sessionTitle)}"
+                : (string.IsNullOrWhiteSpace(sessionTitle) ? "微信" : sessionTitle);
+
+            sessionName = GroupCountSuffix.Replace(sessionName, "").Trim();
 
             result.Add(new ChatMessage
             {
                 AdapterId = Id,
-                SessionName = "微信",
-                SenderName = sender,
+                SessionName = sessionName,
+                SenderName = senderName,
                 Text = text,
                 ReceivedAt = DateTimeOffset.Now
             });
@@ -161,6 +183,31 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
           ? _capture.FindWindowByTitle(WeChatProcessNames, StandaloneChatWindowTitle)
           : _capture.FindMainWindowHandle(WeChatProcessNames);
         return hwnd != IntPtr.Zero;
+    }
+
+    /// <summary>
+  /// OCR 主窗口聊天区顶部的当前会话名(单聊时即对方联系人名)。
+  /// 标题条没变就用缓存,标题区很小、又带变化检测,开销可忽略。
+  /// </summary>
+  private async Task<string> ReadMainSessionTitleAsync(Bitmap full, CancellationToken ct)
+    {
+        using var titleStrip = _capture.Crop(full, TitleCropLeft, TitleCropTop,TitleCropRight,TitleCropBottom);
+        using (var probe = ImageConvert.BitmapToMat(titleStrip))
+        {
+            if(!_titleFrameDetector.HasChanged(probe)) return _lastSessionTitle; // 标题没变
+        }
+        if(_debug.Enabled) _debug.Save(titleStrip, "title_strip");
+
+        var titleLines = await _ocr.RecognizeAsync(titleStrip, ct);
+
+        // 取最靠上，第一条非空文字当标题
+        var title = titleLines
+            .OrderBy(l => l.Bounds.Top)
+            .Select(l => l.Text.Trim())
+            .FirstOrDefault(t => !string.IsNullOrWhiteSpace(t)) ?? "";
+
+        _lastSessionTitle = title;
+        return title;
     }
 
     public void Dispose()
