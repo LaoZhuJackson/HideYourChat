@@ -74,6 +74,8 @@ public partial class MainWindow : FluentWindow
         StandaloneWindowPanel.Visibility =
             _settings.SelectedApp == "微信" ? Visibility.Visible : Visibility.Collapsed;
         
+        QQHideModeComboBox.SelectedIndex = Math.Clamp(_settings.QQHideModeIndex, 0, 2);
+        
         // 应用主题
         ApplicationThemeManager.Apply(_settings.IsDarkTheme ? ApplicationTheme.Dark : ApplicationTheme.Light);
     }
@@ -192,6 +194,8 @@ public partial class MainWindow : FluentWindow
             _settings.OverlayHeight = height;
         }
 
+        _settings.QQHideModeIndex = QQHideModeComboBox.SelectedIndex;
+
         _settingsService.Save(_settings);
     }
 
@@ -206,7 +210,6 @@ public partial class MainWindow : FluentWindow
 
         var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信";
 
-        // TODO QQ
         if (selected == "微信" && _adapter is WeChatAdapter wechat)
         {
             bool useStandalone = StandaloneWindowCheckBox.IsChecked == true;
@@ -251,7 +254,12 @@ public partial class MainWindow : FluentWindow
 
         _monitorService.Start(TimeSpan.FromMilliseconds(1500));
 
-        if(_adapter is QQAdapter qqStart) qqStart.HideWindow(); // 移走QQ窗口
+        if(_adapter is QQAdapter qqStart)
+        {
+            qqStart.HideMode = (QQWindowMover.QQHideMode)QQHideModeComboBox.SelectedIndex;
+            qqStart.HideWindow(); // 移走QQ窗口
+            ToggleQQWindowButton.Content = "显示 QQ 窗口";
+        }
 
         StatusText.Text = $"状态：{selected} 监听已启动";
     }
@@ -401,13 +409,12 @@ public partial class MainWindow : FluentWindow
         {
             qq.RestoreWindow();
             ToggleQQWindowButton.Content = "隐藏 QQ 窗口";
-            StatusText.Text = "状态：QQ 窗口已恢复（被完全遮挡时将读不到新消息）";
         }
         else
         {
+            qq.HideMode = (QQWindowMover.QQHideMode)QQHideModeComboBox.SelectedIndex;  // 用当前选择
             qq.HideWindow();
             ToggleQQWindowButton.Content = "显示 QQ 窗口";
-            StatusText.Text = "状态：QQ 窗口已移至屏幕外，靠悬浮窗看消息";
         }
     }
 

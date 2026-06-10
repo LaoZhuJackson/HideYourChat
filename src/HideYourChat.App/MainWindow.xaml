@@ -22,14 +22,14 @@
         </Grid.RowDefinitions>
 
         <ui:TitleBar Grid.Row="0"
-                Title="HideYourChat">
+                     Title="HideYourChat">
             <ui:TitleBar.Icon>
                 <ui:ImageIcon Source="pack://application:,,,/assets/icons/icon_no_background.png"/>
             </ui:TitleBar.Icon>
         </ui:TitleBar>
 
         <Grid Grid.Row="1"
-                Margin="5,0,5,0">
+              Margin="5,0,5,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
@@ -83,15 +83,15 @@
 
         <!-- Row 2：查找窗口 -->
         <Grid Grid.Row="2"
-                Margin="5,18,5,0">
+              Margin="5,18,5,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <!-- 适配器下拉框 -->
             <StackPanel Orientation="Horizontal"
-                    Margin="0,0,8,0"
-                    Grid.Column="0">
+                        Margin="0,0,8,0"
+                        Grid.Column="0">
                 <ui:TextBlock Text="聊天平台"
                               VerticalAlignment="Center"
                               Margin="0,0,8,0"/>
@@ -100,14 +100,14 @@
                           Height="34"
                           SelectionChanged="AdapterComboBox_SelectionChanged">
                     <ComboBoxItem Content="微信"
-                            IsSelected="True"/>
+                                  IsSelected="True"/>
                     <ComboBoxItem Content="QQ"/>
                 </ComboBox>
             </StackPanel>
             <!-- 微信特有:独立窗口配置(只在选微信时显示) -->
             <StackPanel x:Name="StandaloneWindowPanel"
-                    Orientation="Horizontal"
-                    Grid.Column="1">
+                        Orientation="Horizontal"
+                        Grid.Column="1">
                 <CheckBox x:Name="StandaloneWindowCheckBox"
                           Content="监听独立聊天窗口"
                           VerticalAlignment="Center"
@@ -126,16 +126,29 @@
                     Orientation="Horizontal"
                     Grid.Column="1"
                     Visibility="Collapsed">
+                <ui:TextBlock Text="隐藏方式"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"/>
+                <ComboBox x:Name="QQHideModeComboBox"
+                        Width="100"
+                        Height="34"
+                        VerticalAlignment="Center">
+                    <ComboBoxItem Content="自动"
+                            IsSelected="True"/>
+                    <ComboBoxItem Content="副屏角落"/>
+                    <ComboBoxItem Content="屏幕边缘"/>
+                </ComboBox>
                 <ui:Button x:Name="ToggleQQWindowButton"
-                           Content="显示 QQ 窗口"
+                        Content="显示 QQ 窗口"
                            Height="34"
-                           Click="ToggleQQWindowButton_Click"/>
+                        Margin="8,0,0,0"
+                        Click="ToggleQQWindowButton_Click"/>
             </StackPanel>
         </Grid>
 
         <!-- Row 3：背景透明度 -->
         <Grid Grid.Row="3"
-                Margin="5,18,5,0">
+              Margin="5,18,5,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -165,7 +178,7 @@
 
         <!-- Row 4：文字透明度 -->
         <Grid Grid.Row="4"
-                Margin="5,18,5,0">
+              Margin="5,18,5,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>

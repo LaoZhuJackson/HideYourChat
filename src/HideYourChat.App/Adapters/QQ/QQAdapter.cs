@@ -16,6 +16,7 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
     private IntPtr _hwnd;
     private QQWindowMover.Pos? _savedPos; //隐藏前的原位
     public bool IsWindowHidden { get; private set; }
+    public QQWindowMover.QQHideMode HideMode { get; set; } = QQWindowMover.QQHideMode.Auto;
 
     public string Id => "qq";
     public string DisplayName => "QQ";
@@ -76,7 +77,7 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
         if(_hwnd == IntPtr.Zero) return; // QQ没开
 
         _savedPos = QQWindowMover.GetPosition(_hwnd); // 存入原位
-        QQWindowMover.Stash(_hwnd);
+        QQWindowMover.Stash(_hwnd, HideMode);
         IsWindowHidden = true;
     }
 

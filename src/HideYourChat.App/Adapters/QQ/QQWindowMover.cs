@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Windows.Media.Media3D;
 using FlaUI.Core.WindowsAPI;
 
 namespace HideYourChat.App.Adapters.QQ;
@@ -43,14 +44,14 @@ public static class QQWindowMover
         SetWindowPos(hwnd, IntPtr.Zero, x, y, 0, 0, MoveFlags);
     }
 
-    /// <summary>
-    /// 把 QQ 藏起来,同时保证 Chromium 仍判定"可见"而继续渲染:
-    ///   有副屏 → 整窗丢副屏角落(主屏完全不占);
-    ///   单屏   → 屏幕最左边缘留 peek 像素一条缝兜底。
-    /// </summary>
-    public static void Stash(IntPtr hwnd, int peek = 8)
+    public enum QQHideMode {Auto = 0, Secondary = 1, Edge = 2 }
+
+    /// <summary>按用户选择的方式把 QQ 藏起来,始终保证 Chromium 仍判定"可见"。</summary>
+    public static void Stash(IntPtr hwnd, QQHideMode mode, int peek = 8)
     {
-        if(TryGetSecondaryWorkArea(out var area))
+        bool preferSecondary = mode == QQHideMode.Secondary; // 只有secondary优先副屏，另外两个贴边
+        
+        if(preferSecondary && TryGetSecondaryWorkArea(out var area))
             MoveTo(hwnd, area.Left + 40, area.Top + 40); // 副屏
         else
             PeekAtScreenEdge(hwnd, peek); // 单屏

@@ -18,4 +18,5 @@ public sealed class AppSettings
     public double OverlayWidth { get; set; } = 480;
     public double OverlayHeight { get; set; } = 380;
     public bool IsDarkTheme {get; set; } = true;
+    public int QQHideModeIndex {get; set;} = 0;
 }
