@@ -10,6 +10,7 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
     private readonly UIA3Automation _automation = new();
     private readonly QQWindowLocator _windowLocator = new();
     private readonly QQReader _reader = new();
+    private readonly QQSender _sender = new();
 
     private bool _dumpMode = false; // true是只导出树不读消息，调试用
 
@@ -43,8 +44,13 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
     public bool CanFindTargetWindow() => _windowLocator.FindMainWindow(_automation) is not null;
 
     public Task<SendResult> SendMessageAsync(string sessionName, string message, CancellationToken cancellationToken = default)
-        // 和微信一样,先 stub,避免误发;摸清输入框/发送按钮路径后再实现
-        => Task.FromResult(SendResult.Fail("qq-uia", "QQ 发送功能暂未实现。"));
+    {
+        var win = _windowLocator.FindMainWindow(_automation);
+        if(win is null)
+            return Task.FromResult(SendResult.Fail("qq-uia", "未找到 QQ 窗口"));
+        // 发到当前监视的会话(QQ 当前打开哪个会话就发哪个),sessionName 暂时忽略
+        return Task.FromResult(_sender.Send(win, message));
+    }
 
     private static ChatMessage Info(string text) => new()
     {

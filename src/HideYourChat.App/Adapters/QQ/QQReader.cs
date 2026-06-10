@@ -33,6 +33,7 @@ public sealed class QQReader
         catch{return [];}
 
         var result = new List<ChatMessage>();
+        var occ = new Dictionary<string, int>(); //(发送人|文本)在本次读取中出现的次数
         string currentSender = "";
 
         foreach(var row in rows)
@@ -51,16 +52,23 @@ public sealed class QQReader
             // 无 Name 的 Group → 消息内容
             string text = ExtractContent(row);
             if(string.IsNullOrWhiteSpace(text)) continue;
-
             // 时间分隔符:跳过并清空发送人
             if(IsSeparator(text)) { currentSender = ""; continue;}
+
+            // 同一人发的相同内容(尤其 [图片]/[表情] 占位)会撞 dedupKey 被吞;
+            // 用"本次读取内的出现序号"加盐,让第 2、3 张图也各自成为一条消息
+            string senderName = ResolveSender(currentSender, sessionTitle, isGroup, myNickname);
+            string contentKey = senderName + "|" + text;
+            int n = occ.TryGetValue(contentKey, out var c) ? c : 0;
+            occ[contentKey] = n + 1;
 
             result.Add(new ChatMessage
             {
                 AdapterId = "qq",
                 SessionName = string.IsNullOrWhiteSpace(sessionTitle) ? "QQ" : sessionTitle,
-                SenderName = ResolveSender(currentSender, sessionTitle, isGroup, myNickname),
+                SenderName = senderName,
                 Text = text,
+                DedupSalt = n.ToString(),
                 ReceivedAt = DateTimeOffset.Now
             });
         }
@@ -98,15 +106,24 @@ public sealed class QQReader
                     var t = el.Name?.Trim();
                     if(!string.IsNullOrWhiteSpace(t)) parts.Add(t);
                 }
-                else if(ct == ControlType.Image && el.Name?.Trim() == "图片")
+                else if(ct == ControlType.Image)
                 {
-                    parts.Add("[图片]");
+                    parts.Add(ImagePlaceholder(el.Name?.Trim()));
                 }
             }
             catch {/* 单控件失败不影响整体 */}
         }
 
         return string.Join(" ", parts);
+    }
+
+    /// <summary>把消息里的 Image 元素按 Name 归类成占位文本。</summary>
+    private static string ImagePlaceholder(string? name)
+    {
+        if(string.IsNullOrWhiteSpace(name)) return "[QQ表情]";
+        if(name == "图片") return "[图片]";
+        if(name.Contains("表情")) return "[表情包]";
+        return $"[{name}]"; // 其他
     }
 
     private static bool IsSeparator(string text) => SeparatorPatterns.Any(p => p.IsMatch(text));

@@ -153,14 +153,14 @@ public partial class OverlayWindow : Window
 
         if (string.IsNullOrWhiteSpace(text))
         {
-            ReplyStatusText.Text = "不能发送空消息。";
+            ReplyStatusText.Text = "不能发送空消息";
             return;
         }
 
         SendRequested?.Invoke(this, text);
 
         ReplyTextBox.Clear();
-        ReplyStatusText.Text = "已提交发送请求。";
+        ReplyStatusText.Text = "已提交发送请求";
     }
 
     // 折叠
