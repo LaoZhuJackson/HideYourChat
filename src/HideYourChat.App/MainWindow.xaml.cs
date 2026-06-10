@@ -1,4 +1,5 @@
 ﻿using HideYourChat.App.Adapters.Mock;
+using HideYourChat.App.Adapters.QQ;
 using HideYourChat.App.Adapters.WeChat;
 using HideYourChat.App.Automation;
 using HideYourChat.App.Core;
@@ -16,7 +17,7 @@ public partial class MainWindow : FluentWindow
 {
     private readonly ObservableCollection<ChatMessage> _recentMessages = new();
 
-    private WeChatAdapter _adapter = null!;
+    private IChatAdapter _adapter = null!;
     private readonly MessageDedupService _dedupService = new();
     private ChatMonitorService _monitorService = null!;
 
@@ -86,7 +87,7 @@ public partial class MainWindow : FluentWindow
         _adapter = appName switch
         {
             "微信" => new WeChatAdapter(),
-            "QQ" => throw new NotImplementedException("QQ 适配器尚未实现"),
+            "QQ" => new QQAdapter(),
             _ => new WeChatAdapter()
         };
 
@@ -206,11 +207,6 @@ public partial class MainWindow : FluentWindow
         var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信";
 
         // TODO QQ
-        if (selected == "QQ")
-        {
-            StatusText.Text = "状态：QQ 适配器尚未实现，无法开始监听。";
-            return;
-        }
         if (selected == "微信" && _adapter is WeChatAdapter wechat)
         {
             bool useStandalone = StandaloneWindowCheckBox.IsChecked == true;
@@ -255,12 +251,15 @@ public partial class MainWindow : FluentWindow
 
         _monitorService.Start(TimeSpan.FromMilliseconds(1500));
 
+        if(_adapter is QQAdapter qqStart) qqStart.HideWindow(); // 移走QQ窗口
+
         StatusText.Text = $"状态：{selected} 监听已启动";
     }
 
     private async void StopButton_Click(object sender, RoutedEventArgs e)
     {
         await _monitorService.StopAsync();
+        if (_adapter is QQAdapter qqStop) qqStop.RestoreWindow(); // 恢复QQ窗口
 
         // 解锁配置区
         SetConfigPanelEnabled(true);
@@ -361,6 +360,7 @@ public partial class MainWindow : FluentWindow
         var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信"; //默认使用微信
         //只有微信才显示独立窗口配置
         StandaloneWindowPanel.Visibility = selected == "微信" ? Visibility.Visible : Visibility.Collapsed;
+        QQPanel.Visibility = selected == "QQ" ? Visibility.Visible : Visibility.Collapsed;
 
         //切换适配器
         ReBuildAdapter(selected);
@@ -393,6 +393,24 @@ public partial class MainWindow : FluentWindow
         UpdateThemeButtonIcon(dark);
     }
 
+    private void ToggleQQWindowButton_Click(object sender, RoutedEventArgs e)
+    {
+        if(_adapter is not QQAdapter qq) return;
+
+        if (qq.IsWindowHidden)
+        {
+            qq.RestoreWindow();
+            ToggleQQWindowButton.Content = "隐藏 QQ 窗口";
+            StatusText.Text = "状态：QQ 窗口已恢复（被完全遮挡时将读不到新消息）";
+        }
+        else
+        {
+            qq.HideWindow();
+            ToggleQQWindowButton.Content = "显示 QQ 窗口";
+            StatusText.Text = "状态：QQ 窗口已移至屏幕外，靠悬浮窗看消息";
+        }
+    }
+
     private void UpdateThemeButtonIcon(bool dark)
     {
         // 深色给月亮，浅色给太阳
@@ -406,6 +424,7 @@ public partial class MainWindow : FluentWindow
     {
         SaveCurrentSettings();          // 退出前兜底保存
         await _monitorService.StopAsync();
+        (_adapter as QQAdapter)?.RestoreWindow(); // 退出前恢复QQ窗口
         (_adapter as IDisposable)?.Dispose();
         _overlayWindow?.Close();
         base.OnClosed(e);
