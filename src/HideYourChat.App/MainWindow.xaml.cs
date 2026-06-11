@@ -1,13 +1,10 @@
-﻿using HideYourChat.App.Adapters.Mock;
-using HideYourChat.App.Adapters.QQ;
+﻿using HideYourChat.App.Adapters.QQ;
 using HideYourChat.App.Adapters.WeChat;
-using HideYourChat.App.Automation;
 using HideYourChat.App.Core;
 using HideYourChat.App.Overlay;
-using System.Collections.ObjectModel;
-using System.Reflection.Metadata;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -15,8 +12,6 @@ namespace HideYourChat.App;
 
 public partial class MainWindow : FluentWindow
 {
-    private readonly ObservableCollection<ChatMessage> _recentMessages = new();
-
     private IChatAdapter _adapter = null!;
     private readonly MessageDedupService _dedupService = new();
     private ChatMonitorService _monitorService = null!;
@@ -33,8 +28,6 @@ public partial class MainWindow : FluentWindow
     public MainWindow()
     {
         InitializeComponent();
-
-        RecentMessagesList.ItemsSource = _recentMessages;
 
         _settings = _settingsService.Load();
 
@@ -74,6 +67,13 @@ public partial class MainWindow : FluentWindow
         StandaloneWindowPanel.Visibility =
             _settings.SelectedApp == "微信" ? Visibility.Visible : Visibility.Collapsed;
         
+        CropLeftBox.Value = _settings.WeChatCropLeft;
+        CropRightBox.Value = _settings.WeChatCropRight;
+        CropTopBox.Value = _settings.WeChatCropTop;
+        CropBottomBox.Value = _settings.WeChatCropBottom;
+        WeChatCropPanel.Visibility = 
+            _settings.SelectedApp == "微信" ? Visibility.Visible : Visibility.Collapsed;
+
         QQHideModeComboBox.SelectedIndex = Math.Clamp(_settings.QQHideModeIndex, 0, 2);
         
         // 应用主题
@@ -136,22 +136,6 @@ public partial class MainWindow : FluentWindow
         {
             EnsureOverlayWindow();
 
-            foreach (var message in messages)
-            {
-                _recentMessages.Add(message);
-            }
-
-            while (_recentMessages.Count > 30)
-            {
-                _recentMessages.RemoveAt(0);
-            }
-
-            // 让列表自动滚到最新一条
-            if (_recentMessages.Count > 0)
-            {
-                RecentMessagesList.ScrollIntoView(_recentMessages[^1]);
-            }
-
             _overlayWindow?.AddMessages(messages);
 
             if (_overlayWindow is { IsVisible: false })
@@ -180,6 +164,12 @@ public partial class MainWindow : FluentWindow
         _settings.ContactName = ContactNameBox.Text.Trim();
         _settings.BackgroundOpacity = _backgroundOpacity;
         _settings.TextOpacity = _textOpacity;
+
+        // 保存微信裁剪区域
+        _settings.WeChatCropLeft = CropLeftBox.Value ?? 0.35;
+        _settings.WeChatCropTop = CropTopBox.Value ?? 0.09;
+        _settings.WeChatCropRight = CropRightBox.Value ?? 1.0;
+        _settings.WeChatCropBottom = CropBottomBox.Value ?? 0.82;
 
         // 以当前实际生效的主题为准落盘
         _settings.IsDarkTheme = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
@@ -242,7 +232,18 @@ public partial class MainWindow : FluentWindow
             {
                 wechat.UseStandaloneChatWindow = false;
                 wechat.StandaloneChatWindowTitle = "";
+                // 裁剪区域
+                wechat.CropLeft   = CropLeftBox.Value   ?? 0.35;
+                wechat.CropTop    = CropTopBox.Value    ?? 0.09;
+                wechat.CropRight  = CropRightBox.Value  ?? 1.0;
+                wechat.CropBottom = CropBottomBox.Value ?? 0.82;
             }
+        }
+        else if(_adapter is QQAdapter qqStart)
+        {
+            qqStart.HideMode = (QQWindowMover.QQHideMode)QQHideModeComboBox.SelectedIndex;
+            qqStart.HideWindow(); // 移走QQ窗口
+            ToggleQQWindowButton.Content = "显示 QQ 窗口";
         }
 
         // 校验通过，锁定配置区，保存用户配置
@@ -253,13 +254,6 @@ public partial class MainWindow : FluentWindow
         _overlayWindow?.Show();
 
         _monitorService.Start(TimeSpan.FromMilliseconds(1500));
-
-        if(_adapter is QQAdapter qqStart)
-        {
-            qqStart.HideMode = (QQWindowMover.QQHideMode)QQHideModeComboBox.SelectedIndex;
-            qqStart.HideWindow(); // 移走QQ窗口
-            ToggleQQWindowButton.Content = "显示 QQ 窗口";
-        }
 
         StatusText.Text = $"状态：{selected} 监听已启动";
     }
@@ -283,6 +277,9 @@ public partial class MainWindow : FluentWindow
     {
         AdapterComboBox.IsEnabled = enabled;
         StandaloneWindowCheckBox.IsEnabled = enabled;
+
+        // 裁剪区域使能
+        CropLeftBox.IsEnabled = CropTopBox.IsEnabled = CropRightBox.IsEnabled = CropBottomBox.IsEnabled = enabled;
 
         // 联系人文本框:只有"启用 且 勾选了独立窗口"时才可输入
         ContactNameBox.IsEnabled = enabled && StandaloneWindowCheckBox.IsChecked == true;
@@ -368,6 +365,8 @@ public partial class MainWindow : FluentWindow
         var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信"; //默认使用微信
         //只有微信才显示独立窗口配置
         StandaloneWindowPanel.Visibility = selected == "微信" ? Visibility.Visible : Visibility.Collapsed;
+        WeChatCropPanel.Visibility = selected == "微信" ? Visibility.Visible : Visibility.Collapsed;
+        
         QQPanel.Visibility = selected == "QQ" ? Visibility.Visible : Visibility.Collapsed;
 
         //切换适配器
@@ -425,6 +424,73 @@ public partial class MainWindow : FluentWindow
             dark ? Wpf.Ui.Controls.SymbolRegular.WeatherMoon24
                     : Wpf.Ui.Controls.SymbolRegular.WeatherSunny24
         );
+    }
+
+    private async void TryCaptureButton_Click(object sender, RoutedEventArgs e)
+    {
+        if(_adapter is not WeChatAdapter wechat)
+        {
+            StatusText.Text = "状态：试截图仅微信适配器可用";
+            return;
+        }
+        if (CropLeftBox.Value >= CropRightBox.Value)
+        {
+            StatusText.Text = "状态：左边界比例大于右边界比例";
+            return;
+        }
+        if (CropTopBox.Value >= CropBottomBox.Value)
+        {
+            StatusText.Text = "状态：上边界比例大于下边界比例";
+            return;
+        }
+        // 灌入当前 UI 上的配置, 确保是实时加载最新配置
+        wechat.CropLeft   = CropLeftBox.Value   ?? 0.35;
+        wechat.CropTop    = CropTopBox.Value    ?? 0.09;
+        wechat.CropRight  = CropRightBox.Value  ?? 1.0;
+        wechat.CropBottom = CropBottomBox.Value ?? 0.82;
+        wechat.UseStandaloneChatWindow   = StandaloneWindowCheckBox.IsChecked == true;
+        wechat.StandaloneChatWindowTitle = ContactNameBox.Text.Trim();
+
+        StatusText.Text = "状态：正在截图...";
+        TryCaptureButton.IsEnabled = false;
+        try
+        {
+            var (preview, title) = await wechat.CaptureCropPreviewAsync();
+            if(preview is null)
+            {
+                StatusText.Text = "状态：试截图失败（窗口未找到/最小化，或缺中文 OCR）。";
+                return;
+            }
+            using(preview) // 转成 WPF 图源后即可释放 GDI 位图
+                CropPreviewImage.Source = ToBitmapImage(preview);
+            StatusText.Text = string.IsNullOrWhiteSpace(title)
+                ? $"状态：试截图完成 {DateTime.Now:HH:mm:ss}"
+                : $"状态：试截图完成，标题识别：「{title}」 {DateTime.Now:HH:mm:ss}";
+        }
+        catch(Exception ex)
+        {
+            StatusText.Text = $"状态：试截图异常：{ex.Message}";
+        }
+        finally
+        {
+            TryCaptureButton.IsEnabled = true;
+        }
+    }
+
+    /// <summary>System.Drawing.Bitmap → WPF 可显示的图源(走内存 PNG,避免 GDI 句柄泄漏)</summary>
+    private static System.Windows.Media.Imaging.BitmapImage ToBitmapImage(System.Drawing.Bitmap bmp)
+    {
+        using var ms = new System.IO.MemoryStream();
+        bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+        ms.Position = 0;
+
+        var img = new System.Windows.Media.Imaging.BitmapImage();
+        img.BeginInit();
+        img.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad; // 立刻读完
+        img.StreamSource = ms;
+        img.EndInit();
+        img.Freeze();
+        return img;
     }
 
     protected override async void OnClosed(EventArgs e)

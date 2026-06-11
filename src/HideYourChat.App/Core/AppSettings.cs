@@ -19,4 +19,8 @@ public sealed class AppSettings
     public double OverlayHeight { get; set; } = 380;
     public bool IsDarkTheme {get; set; } = true;
     public int QQHideModeIndex {get; set;} = 0;
+    public double WeChatCropLeft {get; set;} = 0.35;
+    public double WeChatCropTop {get; set;} = 0.09;
+    public double WeChatCropRight {get; set;} = 1.0;
+    public double WeChatCropBottom {get; set;} = 0.82;
 }
