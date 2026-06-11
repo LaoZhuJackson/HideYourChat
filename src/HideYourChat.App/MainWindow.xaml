@@ -4,7 +4,7 @@
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  Title="HideYourChat"
                  Icon="pack://application:,,,/assets/icons/icon_no_background.png"
-                 Width="550"
+                 Width="570"
                  Height="750"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"

@@ -3,7 +3,7 @@ using FlaUI.Core.WindowsAPI;
 
 namespace HideYourChat.App.Adapters.WeChat;
 
-/// <summary>用 SendInput 模拟键盘:粘贴(Ctrl+V)、回车。</summary>
+/// <summary>用 SendInput 模拟键盘:Unicode 逐字键入、粘贴(Ctrl+V)、回车。</summary>
 public static class KeyboardInput
 {
     [DllImport("user32.dll", SetLastError = true)]
@@ -52,7 +52,7 @@ public static class KeyboardInput
         int sz = Marshal.SizeOf<INPUT>();
         uint ret = SendInput((uint)inputs.Length, inputs, sz);
         if(ret == 0)
-            Serilog.Log.Warning("【SendInput】注入0! sizeof(INPUT)={Sz}(64位应=40), LastError={E}", sz, Marshal.GetLastWin32Error());
+            Serilog.Log.Warning("SendInput failed: 0 events injected, sizeof(INPUT)={Sz}, LastError={E}", sz, Marshal.GetLastWin32Error());
         return ret;
     }
     public static void Paste() => Send(Key(VK_CONTROL, false), Key(VK_V, false), Key(VK_V, true), Key(VK_CONTROL, true));
