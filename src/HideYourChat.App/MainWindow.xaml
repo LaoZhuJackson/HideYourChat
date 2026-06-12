@@ -74,13 +74,14 @@
                        Click="HideOverlayButton_Click"/>
 
             <!-- === 临时新增：测试更新弹窗，测完删掉 === -->
-            <ui:Button Content="检查更新"
+            <ui:Button x:Name="CheckUpdateButton"
+                       Content="检查更新"
                        Grid.Column="4"
                        Icon="{ui:SymbolIcon Alert24}"
                        Height="34"
                        Margin="0,0,4,0"
-                       Click="TestUpdateWindow_Click"/>
-            
+                       Click="CheckUpdateButton_Click"/>
+
             <ui:Button x:Name="ToggleThemeButton"
                        Grid.Column="5"
                        Icon="{ui:SymbolIcon WeatherMoon24}"

@@ -52,9 +52,29 @@ jobs:
           -d "Version=${{ steps.version.outputs.version }}" `
           -o output/HideYourChat-${{ steps.version.outputs.version }}.msi
 
+    - name: Extract release notes
+      id: notes
+      shell: powershell
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        $changelog = Get-Content CHANGELOG.md -Raw -Encoding UTF8
+        # 匹配 "## v1.0.2" 到下一个 "## v" 之间的内容
+        $pattern = "(?s)## v$version\s*\n(.+?)(?=\n## v|\z)"
+        if ($changelog -match $pattern) {
+          $notes = $matches[1].Trim()
+          echo "notes<<EOF" >> $env:GITHUB_OUTPUT
+          echo "$notes" >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+        } else {
+          # 没找到对应版本，fallback 到 tag message
+          $tagMsg = git tag -l --format='%(contents)' ${{ github.ref_name }}
+          echo "notes<<EOF" >> $env:GITHUB_OUTPUT
+          echo "$tagMsg" >> $env:GITHUB_OUTPUT
+          echo "EOF" >> $env:GITHUB_OUTPUT
+        }
+    
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       with:
         name: "v${{ steps.version.outputs.version }}"
         files: output/HideYourChat-${{ steps.version.outputs.version }}.msi
-        generate_release_notes: true

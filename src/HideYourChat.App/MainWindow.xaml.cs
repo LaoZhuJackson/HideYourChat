@@ -7,6 +7,8 @@ using System.Windows.Controls;
 using Serilog;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
+using HideYourChat.App.Update;
+using System.Threading.Tasks;
 
 namespace HideYourChat.App;
 
@@ -493,32 +495,38 @@ public partial class MainWindow : FluentWindow
         return img;
     }
 
-    // === 临时新增：测试更新弹窗，测完删掉 ===
-    private void TestUpdateWindow_Click(object sender, RoutedEventArgs e)
+    // 检查更新
+    private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            var result = new Update.UpdateCheckResult
-            {
-                TagName = "v9.9.9",
-                Version = "9.9.9",
-                DownloadUrl = "https://example.com/test.msi",
-                ReleaseNotes = "● 新增功能 A：支持 xxx\n● 修复问题 B：yyy 已解决\n● 性能优化C：启动速度提升 30 %\n\n这是一个测试更新内容。",
-                Size = 12_345_678,
-                ForceUpdate = true   // ← 改成 true 可以测试强制更新模式
-            };
+        CheckUpdateButton.IsEnabled = false;
+        StatusText.Text = "状态：正在检查更新…";
 
-            using var service = new Update.UpdateService(_settings);
-            var window = new Update.UpdateWindow(result, service)
+        using var service = new UpdateService(_settings);
+        var result = await service.CheckAsync(UpdateService.CurrentVersion);
+
+        if(result != null)
+        {
+            StatusText.Text = $"状态：发现新版本 v{result.Version}";
+            var window = new UpdateWindow(result, service, skippedVersion =>
+            {
+                _settings.SkippedVersion = skippedVersion;
+                new SettingsService().Save(_settings);
+            })
             {
                 Owner = this
             };
             window.ShowDialog();
         }
-        catch(Exception ex)
+        else if(service.LastError != null)
         {
-            Log.Error(ex, "测试更新弹窗崩溃！类型={Type} 消息={Message}", ex.GetType().FullName, ex.Message);
+            StatusText.Text = $"状态：检查更新失败 — {service.LastError}";
         }
+        else
+        {
+            StatusText.Text = "状态：已是最新版本 ✓";
+        }
+
+        CheckUpdateButton.IsEnabled = true;
     }
 
     protected override async void OnClosed(EventArgs e)

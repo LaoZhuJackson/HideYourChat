@@ -13,6 +13,7 @@ public class UpdateService : IDisposable
     private const string ApiUrl = "https://api.github.com/repos/LaoZhuJackson/HideYourChat/releases/latest";
     private readonly HttpClient _http;
     private bool _disposed;
+    public string? LastError {get; private set;}
 
     public static string CurrentVersion => System.Reflection.Assembly.GetExecutingAssembly()
         .GetName().Version?.ToString(3) ?? "0.0.0";
@@ -43,6 +44,7 @@ public class UpdateService : IDisposable
     /// <summary>比较版本号，返回 null 表示没有新版本或检查失败</summary>
     public async Task<UpdateCheckResult?> CheckAsync(string currentVersion)
     {
+        LastError = null;
         try
         {
             var json = await _http.GetStringAsync(ApiUrl);
@@ -77,17 +79,25 @@ public class UpdateService : IDisposable
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
-            // 404 说明还没发过 release，是正常情况，不记日志
+            LastError = "仓库尚未发布任何版本";
             return null;
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
         {
+            LastError = "GitHub API 限流（403），建议在 settings.json 中配置 GitHubToken";
             // 403 说明 API 限流，提示配 Token
-            Log.Warning("GitHub API 限流（403），建议在 settings.json 中配置 GitHubToken");
+            Log.Warning(LastError);
+            return null;
+        }
+        catch(HttpRequestException ex)
+        {
+            LastError = $"网络连接失败：{ex.Message}";
+            Log.Warning(ex, "检查更新失败");
             return null;
         }
         catch (Exception ex)
         {
+            LastError = $"检查更新异常：{ex.Message}";
             Log.Warning(ex, "检查更新失败");
             return null;  // 请求失败或解析错误时视为没有新版本
         }

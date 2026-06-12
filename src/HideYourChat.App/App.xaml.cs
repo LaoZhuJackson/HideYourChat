@@ -52,8 +52,13 @@ public partial class App : System.Windows.Application
         using var service = new UpdateService(settings);
         var result = await service.CheckAsync(UpdateService.CurrentVersion);
 
-        if(result == null) return;
-        if(settings.SkippedVersion == result.Version) return;
+        if(result == null)
+        {
+            if(service.LastError != null)
+                Log.Warning("启动检查更新失败：{Error}", service.LastError);
+            return;
+        }
+        if(settings.SkippedVersion == result.Version) return; // 如果之前设置了跳过版本
 
         var window = new UpdateWindow(result, service, skippedVersion =>
         {
