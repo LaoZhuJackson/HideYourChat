@@ -21,7 +21,8 @@ jobs:
     
     - name: Setup WiX
       run: |
-        dotnet tool install --global wix
+        dotnet tool install --global wix --version 7.0.0
+        wix eula accept wix7
         wix extension add WixToolset.UI.wixext
 
     - name: Extract version from tag
