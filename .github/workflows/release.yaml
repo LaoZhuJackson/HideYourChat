@@ -1,0 +1,59 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write # 允许创建release
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Setup WiX
+      run: |
+        dotnet tool install --global wix --version 4.0.5
+        wix extension add WixToolset.UI.wixext
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        $tag = "${{ github.ref_name }}"
+        $version = $tag -replace '^v', ''
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+
+    - name: Publish app
+      run: |
+        dotnet publish src/HideYourChat.App/HideYourChat.App.csproj `
+          -c Release -r win-x64 --self-contained false `
+          -o publish/ `
+          -p:Version=${{ steps.version.outputs.version }}
+
+    - name: Harvest files
+      run: |
+        powershell ./installer/generate-components.ps1 `
+          -PublishDir publish `
+          -OutputFile installer/PublishedComponents.wxs
+
+    - name: Build MSI
+      run: |
+        wix build -ext WixToolset.UI.wixext `
+          installer/HideYourChat.Setup.wxs installer/PublishedComponents.wxs `
+          -d "Version=${{ steps.version.outputs.version }}" `
+          -o output/HideYourChat-${{ steps.version.outputs.version }}.msi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: "v${{ steps.version.outputs.version }}"
+        files: output/HideYourChat-${{ steps.version.outputs.version }}.msi
+        generate_release_notes: true

@@ -4,7 +4,7 @@
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  Title="HideYourChat"
                  Icon="pack://application:,,,/assets/icons/icon_no_background.png"
-                 Width="570"
+                 Width="613"
                  Height="750"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
@@ -17,8 +17,8 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <ui:TitleBar Grid.Row="0"
@@ -31,11 +31,12 @@
         <Grid Grid.Row="1"
               Margin="5,0,5,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="auto"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <ui:Button x:Name="StartButton"
                        Grid.Column="0"
@@ -72,8 +73,16 @@
                        HorizontalAlignment="Stretch"
                        Click="HideOverlayButton_Click"/>
 
-            <ui:Button x:Name="ToggleThemeButton"
+            <!-- === 临时新增：测试更新弹窗，测完删掉 === -->
+            <ui:Button Content="检查更新"
                        Grid.Column="4"
+                       Icon="{ui:SymbolIcon Alert24}"
+                       Height="34"
+                       Margin="0,0,4,0"
+                       Click="TestUpdateWindow_Click"/>
+            
+            <ui:Button x:Name="ToggleThemeButton"
+                       Grid.Column="5"
                        Icon="{ui:SymbolIcon WeatherMoon24}"
                        Width="40"
                        Height="34"
@@ -211,102 +220,102 @@
                   Header="微信截图裁剪比例 (0~1，消息区域)"
                   Margin="5,18,5,0">
             <Grid Margin="4">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <!-- 4 个比例框 -->
-                <RowDefinition Height="Auto"/>
-                <!-- 试截图按钮 -->
-                <RowDefinition Height="*"/>
-                <!-- 预览图 -->
-            </Grid.RowDefinitions>
-
-            <!-- 比例框(沿用已有的那 4 个 NumberBox,整段塞进 Grid.Row=0) -->
-            <Grid Grid.Row="0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <!-- 4 个比例框 -->
                     <RowDefinition Height="Auto"/>
+                    <!-- 试截图按钮 -->
+                    <RowDefinition Height="*"/>
+                    <!-- 预览图 -->
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0"
-                        Grid.Column="0"
-                        Text="左"
-                        VerticalAlignment="Center"
-                        Margin="0,0,8,8"/>
-                <ui:NumberBox Grid.Row="0"
-                        Grid.Column="1"
-                        x:Name="CropLeftBox"
-                        Minimum="0"
-                        Maximum="1"
-                        SmallChange="0.01"
-                        Margin="0,0,12,8"/>
-                <TextBlock Grid.Row="0"
-                        Grid.Column="2"
-                        Text="右"
-                        VerticalAlignment="Center"
-                        Margin="0,0,8,8"/>
-                <ui:NumberBox Grid.Row="0"
-                        Grid.Column="3"
-                        x:Name="CropRightBox"
-                        Minimum="0"
-                        Maximum="1"
-                        SmallChange="0.01"
-                        Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="1"
-                        Grid.Column="0"
-                        Text="上"
-                        VerticalAlignment="Center"
-                        Margin="0,0,8,0"/>
-                <ui:NumberBox Grid.Row="1"
-                        Grid.Column="1"
-                        x:Name="CropTopBox"
-                        Minimum="0"
-                        Maximum="1"
-                        SmallChange="0.01"
-                        Margin="0,0,12,0"/>
-                <TextBlock Grid.Row="1"
-                        Grid.Column="2"
-                        Text="下"
-                        VerticalAlignment="Center"
-                        Margin="0,0,8,0"/>
-                <ui:NumberBox Grid.Row="1"
-                        Grid.Column="3"
-                        x:Name="CropBottomBox"
-                        Minimum="0"
-                        Maximum="1"
-                        SmallChange="0.01"
-                        Margin="0,0,0,0"/>
+
+                <!-- 比例框(沿用已有的那 4 个 NumberBox,整段塞进 Grid.Row=0) -->
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0"
+                               Grid.Column="0"
+                               Text="左"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,8"/>
+                    <ui:NumberBox Grid.Row="0"
+                                  Grid.Column="1"
+                                  x:Name="CropLeftBox"
+                                  Minimum="0"
+                                  Maximum="1"
+                                  SmallChange="0.01"
+                                  Margin="0,0,12,8"/>
+                    <TextBlock Grid.Row="0"
+                               Grid.Column="2"
+                               Text="右"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,8"/>
+                    <ui:NumberBox Grid.Row="0"
+                                  Grid.Column="3"
+                                  x:Name="CropRightBox"
+                                  Minimum="0"
+                                  Maximum="1"
+                                  SmallChange="0.01"
+                                  Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="1"
+                               Grid.Column="0"
+                               Text="上"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <ui:NumberBox Grid.Row="1"
+                                  Grid.Column="1"
+                                  x:Name="CropTopBox"
+                                  Minimum="0"
+                                  Maximum="1"
+                                  SmallChange="0.01"
+                                  Margin="0,0,12,0"/>
+                    <TextBlock Grid.Row="1"
+                               Grid.Column="2"
+                               Text="下"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <ui:NumberBox Grid.Row="1"
+                                  Grid.Column="3"
+                                  x:Name="CropBottomBox"
+                                  Minimum="0"
+                                  Maximum="1"
+                                  SmallChange="0.01"
+                                  Margin="0,0,0,0"/>
+                </Grid>
+
+                <ui:Button Grid.Row="1"
+                           x:Name="TryCaptureButton"
+                           Content="试截图预览"
+                           Icon="{ui:SymbolIcon Camera24}"
+                           Height="32"
+                           Margin="0,10,0,8"
+                           HorizontalAlignment="Left"
+                           Click="TryCaptureButton_Click"/>
+
+                <Border Grid.Row="2"
+                        BorderBrush="Gray"
+                        BorderThickness="1"
+                        CornerRadius="4">
+                    <Image x:Name="CropPreviewImage"
+                           Stretch="Uniform"
+                           StretchDirection="DownOnly"/>
+                </Border>
             </Grid>
+        </GroupBox>
 
-            <ui:Button Grid.Row="1"
-                       x:Name="TryCaptureButton"
-                       Content="试截图预览"
-                       Icon="{ui:SymbolIcon Camera24}"
-                       Height="32"
-                       Margin="0,10,0,8"
-                       HorizontalAlignment="Left"
-                       Click="TryCaptureButton_Click"/>
-
-            <Border Grid.Row="2"
-                    BorderBrush="Gray"
-                    BorderThickness="1"
-                    CornerRadius="4">
-                <Image x:Name="CropPreviewImage"
-                        Stretch="Uniform"
-                        StretchDirection="DownOnly"/>
-            </Border>
-    </Grid>
-    </GroupBox>
-
-    <TextBlock x:Name="StatusText"
-               Grid.Row="6"
-               Text="状态：未启动"
-               Margin="5,14,5,5"
-               Foreground="#666666"
-               TextWrapping="Wrap"/>
+        <TextBlock x:Name="StatusText"
+                   Grid.Row="6"
+                   Text="状态：未启动"
+                   Margin="5,14,5,5"
+                   Foreground="#666666"
+                   TextWrapping="Wrap"/>
     </Grid>
 </ui:FluentWindow>

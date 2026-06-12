@@ -4,7 +4,7 @@ using HideYourChat.App.Core;
 using HideYourChat.App.Overlay;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media.Imaging;
+using Serilog;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 
@@ -66,16 +66,16 @@ public partial class MainWindow : FluentWindow
 
         StandaloneWindowPanel.Visibility =
             _settings.SelectedApp == "微信" ? Visibility.Visible : Visibility.Collapsed;
-        
+
         CropLeftBox.Value = _settings.WeChatCropLeft;
         CropRightBox.Value = _settings.WeChatCropRight;
         CropTopBox.Value = _settings.WeChatCropTop;
         CropBottomBox.Value = _settings.WeChatCropBottom;
-        WeChatCropPanel.Visibility = 
+        WeChatCropPanel.Visibility =
             _settings.SelectedApp == "微信" ? Visibility.Visible : Visibility.Collapsed;
 
         QQHideModeComboBox.SelectedIndex = Math.Clamp(_settings.QQHideModeIndex, 0, 2);
-        
+
         // 应用主题
         ApplicationThemeManager.Apply(_settings.IsDarkTheme ? ApplicationTheme.Dark : ApplicationTheme.Light);
     }
@@ -175,9 +175,9 @@ public partial class MainWindow : FluentWindow
         _settings.IsDarkTheme = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
 
         // overlay 得判空，不存在则保留上次的值（不覆盖）
-        if(_overlayWindow is not null)
+        if (_overlayWindow is not null)
         {
-            var (left,top,width,height) = _overlayWindow.GetPersistedBounds();
+            var (left, top, width, height) = _overlayWindow.GetPersistedBounds();
             _settings.OverlayLeft = left;
             _settings.OverlayTop = top;
             _settings.OverlayWidth = width;
@@ -233,13 +233,13 @@ public partial class MainWindow : FluentWindow
                 wechat.UseStandaloneChatWindow = false;
                 wechat.StandaloneChatWindowTitle = "";
                 // 裁剪区域
-                wechat.CropLeft   = CropLeftBox.Value   ?? 0.35;
-                wechat.CropTop    = CropTopBox.Value    ?? 0.09;
-                wechat.CropRight  = CropRightBox.Value  ?? 1.0;
+                wechat.CropLeft = CropLeftBox.Value ?? 0.35;
+                wechat.CropTop = CropTopBox.Value ?? 0.09;
+                wechat.CropRight = CropRightBox.Value ?? 1.0;
                 wechat.CropBottom = CropBottomBox.Value ?? 0.82;
             }
         }
-        else if(_adapter is QQAdapter qqStart)
+        else if (_adapter is QQAdapter qqStart)
         {
             qqStart.HideMode = (QQWindowMover.QQHideMode)QQHideModeComboBox.SelectedIndex;
             qqStart.HideWindow(); // 移走QQ窗口
@@ -366,7 +366,7 @@ public partial class MainWindow : FluentWindow
         //只有微信才显示独立窗口配置
         StandaloneWindowPanel.Visibility = selected == "微信" ? Visibility.Visible : Visibility.Collapsed;
         WeChatCropPanel.Visibility = selected == "微信" ? Visibility.Visible : Visibility.Collapsed;
-        
+
         QQPanel.Visibility = selected == "QQ" ? Visibility.Visible : Visibility.Collapsed;
 
         //切换适配器
@@ -402,7 +402,7 @@ public partial class MainWindow : FluentWindow
 
     private void ToggleQQWindowButton_Click(object sender, RoutedEventArgs e)
     {
-        if(_adapter is not QQAdapter qq) return;
+        if (_adapter is not QQAdapter qq) return;
 
         if (qq.IsWindowHidden)
         {
@@ -428,7 +428,7 @@ public partial class MainWindow : FluentWindow
 
     private async void TryCaptureButton_Click(object sender, RoutedEventArgs e)
     {
-        if(_adapter is not WeChatAdapter wechat)
+        if (_adapter is not WeChatAdapter wechat)
         {
             StatusText.Text = "状态：试截图仅微信适配器可用";
             return;
@@ -444,11 +444,11 @@ public partial class MainWindow : FluentWindow
             return;
         }
         // 灌入当前 UI 上的配置, 确保是实时加载最新配置
-        wechat.CropLeft   = CropLeftBox.Value   ?? 0.35;
-        wechat.CropTop    = CropTopBox.Value    ?? 0.09;
-        wechat.CropRight  = CropRightBox.Value  ?? 1.0;
+        wechat.CropLeft = CropLeftBox.Value ?? 0.35;
+        wechat.CropTop = CropTopBox.Value ?? 0.09;
+        wechat.CropRight = CropRightBox.Value ?? 1.0;
         wechat.CropBottom = CropBottomBox.Value ?? 0.82;
-        wechat.UseStandaloneChatWindow   = StandaloneWindowCheckBox.IsChecked == true;
+        wechat.UseStandaloneChatWindow = StandaloneWindowCheckBox.IsChecked == true;
         wechat.StandaloneChatWindowTitle = ContactNameBox.Text.Trim();
 
         StatusText.Text = "状态：正在截图...";
@@ -456,18 +456,18 @@ public partial class MainWindow : FluentWindow
         try
         {
             var (preview, title) = await wechat.CaptureCropPreviewAsync();
-            if(preview is null)
+            if (preview is null)
             {
                 StatusText.Text = "状态：试截图失败（窗口未找到/最小化，或缺中文 OCR）。";
                 return;
             }
-            using(preview) // 转成 WPF 图源后即可释放 GDI 位图
+            using (preview) // 转成 WPF 图源后即可释放 GDI 位图
                 CropPreviewImage.Source = ToBitmapImage(preview);
             StatusText.Text = string.IsNullOrWhiteSpace(title)
                 ? $"状态：试截图完成 {DateTime.Now:HH:mm:ss}"
                 : $"状态：试截图完成，标题识别：「{title}」 {DateTime.Now:HH:mm:ss}";
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             StatusText.Text = $"状态：试截图异常：{ex.Message}";
         }
@@ -491,6 +491,34 @@ public partial class MainWindow : FluentWindow
         img.EndInit();
         img.Freeze();
         return img;
+    }
+
+    // === 临时新增：测试更新弹窗，测完删掉 ===
+    private void TestUpdateWindow_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var result = new Update.UpdateCheckResult
+            {
+                TagName = "v9.9.9",
+                Version = "9.9.9",
+                DownloadUrl = "https://example.com/test.msi",
+                ReleaseNotes = "● 新增功能 A：支持 xxx\n● 修复问题 B：yyy 已解决\n● 性能优化C：启动速度提升 30 %\n\n这是一个测试更新内容。",
+                Size = 12_345_678,
+                ForceUpdate = true   // ← 改成 true 可以测试强制更新模式
+            };
+
+            using var service = new Update.UpdateService(_settings);
+            var window = new Update.UpdateWindow(result, service)
+            {
+                Owner = this
+            };
+            window.ShowDialog();
+        }
+        catch(Exception ex)
+        {
+            Log.Error(ex, "测试更新弹窗崩溃！类型={Type} 消息={Message}", ex.GetType().FullName, ex.Message);
+        }
     }
 
     protected override async void OnClosed(EventArgs e)

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+    xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+<!-- === 生成一个 GUID，用下面这行 PowerShell 得到： [guid]::NewGuid().ToString().ToUpper() === -->
+<Package Name="HideYourChat"
+            Manufacturer="LaoZhuJackson"
+            Version="$(var.Version)"
+            UpgradeCode="79883D3E-481F-4F1A-BDC5-3E595102BE7D"
+            Scope="perMachine"
+            Compressed="yes"
+            Codepage="936">
+
+    <MajorUpgrade DowngradeErrorMessage="已安装更高版本，请先卸载后再安装此版本。" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- 安装到 Program Files\HideYourChat -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+    <Directory Id="INSTALLFOLDER" Name="HideYourChat" />
+    </StandardDirectory>
+
+    <!-- 开始菜单快捷方式 -->
+    <StandardDirectory Id="ProgramMenuFolder">
+    <Component Id="StartMenuShortcut" Guid="79883D3E-481F-4F1A-BDC5-3E595102BE7D">
+        <Shortcut Id="StartMenuShortcut" Name="HideYourChat"
+                Target="[INSTALLFOLDER]HideYourChat.App.exe"
+                WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU"
+                        Key="Software\LaoZhuJackson\HideYourChat"
+                        Name="installed"
+                        Value="1"
+                        Type="integer"
+                        KeyPath="yes" />
+    </Component>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="HideYourChat 主程序" Level="1">
+    <ComponentGroupRef Id="PublishedComponents" />
+    <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <!-- 静默安装界面 -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+</Package>
+</Wix>

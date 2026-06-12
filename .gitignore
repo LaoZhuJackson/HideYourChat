@@ -85,7 +85,8 @@ secrets.json
 publish/
 out/
 dist/
-installer/
+output/
+installer/PublishedComponents.wxs
 *.msix
 *.msixbundle
 *.appx
@@ -130,3 +131,4 @@ plugins/local/
 .editorconfig
 .gitattributes
 .claude
+.wix

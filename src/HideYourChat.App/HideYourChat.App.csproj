@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>..\..\assets\icons\icon.ico</ApplicationIcon>
+    <Version>0.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

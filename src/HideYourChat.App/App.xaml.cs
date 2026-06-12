@@ -1,5 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
+using HideYourChat.App.Core;
+using HideYourChat.App.Update;
 using Serilog;
 
 namespace HideYourChat.App;
@@ -9,6 +11,7 @@ namespace HideYourChat.App;
 /// </summary>
 public partial class App : System.Windows.Application
 {
+    private SettingsService? _settingsService;
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -30,6 +33,37 @@ public partial class App : System.Windows.Application
                 outputTemplate:"{Timestamp:HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}"
             ).CreateLogger();
         Log.Information("应用启动");
+
+        _settingsService = new SettingsService();
+
+        // 检查更新
+        Task.Delay(3000).ContinueWith(_ =>
+        {
+            Dispatcher.Invoke(async () =>
+            {
+                await CheckForUpdateAsync();
+            });
+        });
+    }
+
+    private async Task CheckForUpdateAsync()
+    {
+        var settings = _settingsService!.Load();
+        using var service = new UpdateService(settings);
+        var result = await service.CheckAsync(UpdateService.CurrentVersion);
+
+        if(result == null) return;
+        if(settings.SkippedVersion == result.Version) return;
+
+        var window = new UpdateWindow(result, service, skippedVersion =>
+        {
+            settings.SkippedVersion = skippedVersion;
+            _settingsService!.Save(settings);
+        })
+        {
+            Owner = MainWindow
+        };
+        window.ShowDialog();
     }
 
     protected override void OnExit(ExitEventArgs e)
