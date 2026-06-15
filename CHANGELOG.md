@@ -1,4 +1,4 @@
-## v1.0.5
+## v1.0.4
 ### 🚀 新增
 - 完善检查更新提醒，新增自动读取CHANGELOG.md生成release note
 - 新增README.md

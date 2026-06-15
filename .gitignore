@@ -133,3 +133,4 @@ plugins/local/
 .claude
 .wix
 release.ps1
+test-release-notes.ps1
