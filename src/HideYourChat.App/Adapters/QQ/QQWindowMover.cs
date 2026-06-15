@@ -28,6 +28,9 @@ public static class QQWindowMover
 
     private const int SW_SHOWNOACTIVATE = 4;
     private const uint SWP_NOSIZE = 0x1, SWP_NOZORDER = 0x4, SWP_NOACTIVATE = 0x10, SWP_NOOWNERZORDER = 0x200;
+    private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+    private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+    private const uint SWP_NOMOVE = 0x2;
     private const uint MoveFlags = SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOOWNERZORDER;
     private const int SM_XVIRTUALSCREEN = 76;
     private const uint MONITORINFOF_PRIMARY = 1;
@@ -85,5 +88,15 @@ public static class QQWindowMover
             }, IntPtr.Zero);
         workArea = found;
         return got;
+    }
+
+    /// <summary>设置窗口置顶/取消置顶。不改大小、不移动、不抢焦点。</summary>
+    public static void SetTopMost(IntPtr hwnd, bool topmost)
+    {
+        if(hwnd == IntPtr.Zero) return;
+        SetWindowPos(hwnd, topmost
+            ? HWND_TOPMOST : HWND_NOTOPMOST,
+            0,0,0,0,
+            SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE);
     }
 }

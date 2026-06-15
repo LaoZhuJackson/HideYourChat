@@ -266,7 +266,6 @@
                              Height="34"
                              VerticalContentAlignment="Center"
                              KeyDown="ReplyTextBox_KeyDown"
-                             ToolTip="输入回复内容，按 Enter 发送"
                              TextWrapping="Wrap"/>
 
                     <Button x:Name="SendButton"

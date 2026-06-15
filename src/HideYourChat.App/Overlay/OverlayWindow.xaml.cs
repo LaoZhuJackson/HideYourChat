@@ -347,6 +347,18 @@ public partial class OverlayWindow : Window
         }
     }
 
+    /// <summary>把焦点设回overlap回复输入框（发送消息后外部调用）</summary>
+    public void FocusReplayInput()
+    {
+        // 先确保窗口被激活，再设焦点到输入框
+        // 用 Dispatcher 延迟一帧，确保窗口已在前台
+        Dispatcher.InvokeAsync(() =>
+        {
+            ReplyTextBox.Focus();
+            Keyboard.Focus(ReplyTextBox);
+        }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);

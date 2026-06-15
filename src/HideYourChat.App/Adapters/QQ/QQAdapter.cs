@@ -84,6 +84,7 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
 
         _savedPos = QQWindowMover.GetPosition(_hwnd); // 存入原位
         QQWindowMover.Stash(_hwnd, HideMode);
+        QQWindowMover.SetTopMost(_hwnd, true);
         IsWindowHidden = true;
     }
 
@@ -92,6 +93,7 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
         if(!IsWindowHidden) return;
         if(_hwnd != IntPtr.Zero && _savedPos is { } p) // 如果 _savedPos 不为 null，则赋值给 p
             QQWindowMover.MoveTo(_hwnd, p.X, p.Y);
+        QQWindowMover.SetTopMost(_hwnd, false);
         IsWindowHidden = false;
     }
 

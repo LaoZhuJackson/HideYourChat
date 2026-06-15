@@ -320,6 +320,13 @@ public partial class MainWindow : FluentWindow
             _overlayWindow?.SetReplyStatus($"发送失败：{result.ErrorMessage}");
             StatusText.Text = $"状态：Overlay 发送失败：{result.ErrorMessage}";
         }
+        // 发送后抢回焦点，防止焦点落在QQ窗口
+        await Task.Delay(150);
+        Dispatcher.Invoke(() =>
+        {
+            _overlayWindow?.Activate();
+            _overlayWindow?.FocusReplayInput();
+        });
     }
 
     private void BackgroundOpacitySlider_ValueChanged(

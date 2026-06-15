@@ -1,5 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
@@ -7,12 +6,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <ApplicationIcon>..\..\assets\icons\icon.ico</ApplicationIcon>
-    <Version>0.0.1</Version>
+    <Version>1.0.4</Version>
   </PropertyGroup>
-
   <ItemGroup>
     <Resource Include="..\..\assets\icons\icon_no_background.png">
-        <Link>assets\icons\icon_no_background.png</Link>
+      <Link>assets\icons\icon_no_background.png</Link>
     </Resource>
     <PackageReference Include="FlaUI.Core" Version="5.0.0" />
     <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
@@ -31,5 +29,4 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
   </ItemGroup>
-
 </Project>

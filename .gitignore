@@ -132,3 +132,4 @@ plugins/local/
 .gitattributes
 .claude
 .wix
+release.ps1
