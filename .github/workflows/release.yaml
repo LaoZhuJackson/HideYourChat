@@ -57,9 +57,12 @@ jobs:
       shell: powershell
       run: |
         $version = "${{ steps.version.outputs.version }}"
+        $escaped = [regex]::Escape($version)
         $changelog = Get-Content CHANGELOG.md -Raw -Encoding UTF8
+        # 统一换行为 LF，避免 Windows CRLF 导致 \n 匹配失败
+        $changelog = $changelog -replace "`r`n", "`n"
         # 匹配 "## v1.0.2" 到下一个 "## v" 之间的内容
-        $pattern = "(?s)## v$version\s*\n(.+?)(?=\n## v|\z)"
+        $pattern = "(?s)^## v$escaped\s*\n(.+?)(?=\n## v|\z)"
         if ($changelog -match $pattern) {
           $notes = $matches[1].Trim()
           echo "notes<<EOF" >> $env:GITHUB_OUTPUT

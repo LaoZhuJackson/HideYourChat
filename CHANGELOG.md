@@ -1,6 +1,7 @@
-## v1.0.4
+## v1.0.5
 ### 🚀 新增
 - 完善检查更新提醒，新增自动读取CHANGELOG.md生成release note
+- 新增README.md
 ### 🔧 修复
 - qq回复信息后，overlap焦点丢失的问题
 - 添加置顶QQ窗口解决隐藏QQ窗口后被全屏软件覆盖的问题
