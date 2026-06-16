@@ -20,14 +20,14 @@ public class UpdateService : IDisposable
 
     public UpdateService(AppSettings? settings = null)
     {
-        var handler = new HttpClientHandler();
-        // 配置了代理则走代理
-        if (settings != null && !string.IsNullOrEmpty(settings.ProxyHost) && settings.ProxyPort > 0)
-        {
-            handler.Proxy = new System.Net.WebProxy(settings.ProxyHost, settings.ProxyPort);
-            handler.UseProxy = true;
-            Log.Information("使用代理 {Host}:{Port}", settings.ProxyHost, settings.ProxyPort);
-        }
+        // var handler = new HttpClientHandler();
+        // // 配置了代理则走代理
+        // if (settings != null && !string.IsNullOrEmpty(settings.ProxyHost) && settings.ProxyPort > 0)
+        // {
+        //     handler.Proxy = new System.Net.WebProxy(settings.ProxyHost, settings.ProxyPort);
+        //     handler.UseProxy = true;
+        //     Log.Information("使用代理 {Host}:{Port}", settings.ProxyHost, settings.ProxyPort);
+        // }
         _http = new HttpClient();
         _http.DefaultRequestHeaders.UserAgent.ParseAdd("HideYourChat");
         _http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");

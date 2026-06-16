@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using HideYourChat.App.Core;
-using Windows.Devices.SerialCommunication;
+using Color = System.Windows.Media.Color;
 
 namespace HideYourChat.App.Overlay;
 

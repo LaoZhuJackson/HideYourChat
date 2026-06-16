@@ -26,6 +26,7 @@ public sealed class MockChatAdapter : IChatAdapter
 
     public string Id => "mock";
     public string DisplayName => "Mock Chat";
+    public string CurrentSessionName => "测试群聊";
     public Task<IReadOnlyList<ChatMessage>> ReadLatestMessagesAsync(CancellationToken cancellationToken = default)
     {
         lock (_lock) // 确保多线程环境下的数据一致性

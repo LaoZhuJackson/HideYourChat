@@ -8,18 +8,20 @@ using Serilog;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using HideYourChat.App.Update;
-using System.Threading.Tasks;
+using System.ComponentModel;
+using WinForms = System.Windows.Forms;
 
 namespace HideYourChat.App;
 
 public partial class MainWindow : FluentWindow
 {
-    private IChatAdapter _adapter = null!;
-    private readonly MessageDedupService _dedupService = new();
-    private ChatMonitorService _monitorService = null!;
-
-    private OverlayWindow? _overlayWindow;
-
+    private readonly ChatRuntimeService _runtime = new();
+    // 托盘相关
+    private WinForms.NotifyIcon? _trayIcon;
+    private bool _isReallyClosing;
+    private WinForms.ToolStripMenuItem? _monitorMenuItem;
+    private WinForms.ToolStripMenuItem? _overlayMenuItem;
+    // 透明度相关
     private double _backgroundOpacity = 0.80;
     private double _textOpacity = 1.00;
 
@@ -36,12 +38,16 @@ public partial class MainWindow : FluentWindow
         _backgroundOpacity = _settings.BackgroundOpacity;
         _textOpacity = _settings.TextOpacity;
 
-        ReBuildAdapter(_settings.SelectedApp);
+        _runtime.SwitchAdapter(_settings.SelectedApp);
+        _runtime.StatusChanged += (_, text) =>
+            Dispatcher.Invoke(() => StatusText.Text = $"状态：{text}");
+        _runtime.ConfigLockChanged += (_, locked) =>
+            Dispatcher.Invoke(() => SetConfigPanelEnabled(locked));
 
         ApplySettingsToUi(); // 把配置回填到各控件
         UpdateThemeButtonIcon(_settings.IsDarkTheme);
-
         SetConfigPanelEnabled(true);
+        InitTrayIcon();
     }
 
     /// <summary>把已加载的配置回填到界面控件上。</summary>
@@ -82,80 +88,6 @@ public partial class MainWindow : FluentWindow
         ApplicationThemeManager.Apply(_settings.IsDarkTheme ? ApplicationTheme.Dark : ApplicationTheme.Light);
     }
 
-    /// <summary>根据选择的聊天软件,重建适配器和监听服务。仅在未监听时调用。</summary>
-    private void ReBuildAdapter(string appName)
-    {
-        // 释放旧的
-        (_adapter as IDisposable)?.Dispose();
-
-        _adapter = appName switch
-        {
-            "微信" => new WeChatAdapter(),
-            "QQ" => new QQAdapter(),
-            _ => new WeChatAdapter()
-        };
-
-        _monitorService = new ChatMonitorService(_adapter, _dedupService);
-        _monitorService.NewMessagesReceived += MonitorService_NewMessagesReceived;
-        _monitorService.ErrorOccurred += MonitorService_ErrorOccurred;
-    }
-
-    private void EnsureOverlayWindow()
-    {
-        if (_overlayWindow is not null)
-        {
-            return;
-        }
-
-        _overlayWindow = new OverlayWindow();
-        _overlayWindow.SetBackgroundOpacity(_backgroundOpacity);
-        _overlayWindow.SetTextOpacity(_textOpacity);
-
-        // 应用保存的位置和尺寸
-        _overlayWindow.ApplyPersistedBounds(
-            _settings.OverlayLeft, _settings.OverlayTop,
-            _settings.OverlayWidth, _settings.OverlayHeight
-        );
-
-        _overlayWindow.SendRequested += OverlayWindow_SendRequested;
-
-        _overlayWindow.Closed += (_, _) =>
-        {
-            if (_overlayWindow is not null)
-            {
-                _overlayWindow.SendRequested -= OverlayWindow_SendRequested;
-            }
-
-            _overlayWindow = null;
-        };
-    }
-
-    private void MonitorService_NewMessagesReceived(
-        object? sender,
-        IReadOnlyList<ChatMessage> messages)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            EnsureOverlayWindow();
-
-            _overlayWindow?.AddMessages(messages);
-
-            if (_overlayWindow is { IsVisible: false })
-            {
-                _overlayWindow.Show();
-            }
-
-            StatusText.Text = $"状态：收到 {messages.Count} 条新消息，时间 {DateTime.Now:HH:mm:ss}";
-        });
-    }
-
-    private void MonitorService_ErrorOccurred(object? sender, string error)
-    {
-        Dispatcher.Invoke(() =>
-        {
-            StatusText.Text = $"状态：监听异常：{error}";
-        });
-    }
     /// <summary>
     /// 保存设置
     /// </summary>
@@ -177,9 +109,9 @@ public partial class MainWindow : FluentWindow
         _settings.IsDarkTheme = ApplicationThemeManager.GetAppTheme() == ApplicationTheme.Dark;
 
         // overlay 得判空，不存在则保留上次的值（不覆盖）
-        if (_overlayWindow is not null)
+        var (left, top, width, height) = _runtime.GetOverlayBounds();
+        if (!double.IsNaN(left))
         {
-            var (left, top, width, height) = _overlayWindow.GetPersistedBounds();
             _settings.OverlayLeft = left;
             _settings.OverlayTop = top;
             _settings.OverlayWidth = width;
@@ -193,82 +125,30 @@ public partial class MainWindow : FluentWindow
 
     private void StartButton_Click(object sender, RoutedEventArgs e)
     {
-        // 防呆
-        if (_monitorService.IsRunning)
-        {
-            StatusText.Text = "状态：监听已在运行中";
-            return;
-        }
-
-        var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信";
-
-        if (selected == "微信" && _adapter is WeChatAdapter wechat)
-        {
-            bool useStandalone = StandaloneWindowCheckBox.IsChecked == true;
-            string contactName = ContactNameBox.Text.Trim();
-
-            if (useStandalone)
-            {
-                //校验:勾了独立窗口但没填联系人(含纯空白)
-                if (string.IsNullOrWhiteSpace(contactName))
-                {
-                    StatusText.Text = "状态：已勾选独立窗口模式，请先输入联系人名称";
-                    ContactNameBox.Focus();
-                    return;
-                }
-                // 启动前探测窗口是否存在,找不到就别启动
-                if (_adapter is WeChatAdapter w && !w.CanFindTargetWindow())
-                {
-                    StatusText.Text = useStandalone
-                        ? $"状态：找不到标题含「{contactName}」的窗口，请确认已打开该联系人的独立聊天窗口。"
-                        : "状态：找不到微信主窗口，请确认微信已打开。";
-                    SetConfigPanelEnabled(true); // 解锁回去
-                    return;
-                }
-
-                // 把配置传给适配器
-                wechat.UseStandaloneChatWindow = true;
-                wechat.StandaloneChatWindowTitle = contactName;
-            }
-            else
-            {
-                wechat.UseStandaloneChatWindow = false;
-                wechat.StandaloneChatWindowTitle = "";
-                // 裁剪区域
-                wechat.CropLeft = CropLeftBox.Value ?? 0.35;
-                wechat.CropTop = CropTopBox.Value ?? 0.09;
-                wechat.CropRight = CropRightBox.Value ?? 1.0;
-                wechat.CropBottom = CropBottomBox.Value ?? 0.82;
-            }
-        }
-        else if (_adapter is QQAdapter qqStart)
-        {
-            qqStart.HideMode = (QQWindowMover.QQHideMode)QQHideModeComboBox.SelectedIndex;
-            qqStart.HideWindow(); // 移走QQ窗口
-            ToggleQQWindowButton.Content = "显示 QQ 窗口";
-        }
-
-        // 校验通过，锁定配置区，保存用户配置
         SaveCurrentSettings();
+        if (!_runtime.Start(_settings, _backgroundOpacity, _textOpacity))
+            return; // Start 返回 false 表示校验失败，通过回调设置 StatusText
         SetConfigPanelEnabled(false);
-
-        EnsureOverlayWindow();
-        _overlayWindow?.Show();
-
-        _monitorService.Start(TimeSpan.FromMilliseconds(1500));
-
-        StatusText.Text = $"状态：{selected} 监听已启动";
+        ToggleQQWindowButton.Content = _runtime.IsQQWindowHidden ? "显示 QQ 窗口" : "隐藏 QQ 窗口";
     }
 
     private async void StopButton_Click(object sender, RoutedEventArgs e)
     {
-        await _monitorService.StopAsync();
-        if (_adapter is QQAdapter qqStop) qqStop.RestoreWindow(); // 恢复QQ窗口
-
-        // 解锁配置区
+        await _runtime.StopAsync();
         SetConfigPanelEnabled(true);
+        ToggleQQWindowButton.Content = "显示 QQ 窗口";
+    }
 
-        StatusText.Text = "状态：监听已停止。";
+    private void ShowOverlayButton_Click(object sender, RoutedEventArgs e)
+    {
+        _runtime.ShowOverlay();
+        StatusText.Text = "状态：悬浮窗已显示";
+    }
+
+    private void HideOverlayButton_Click(object sender, RoutedEventArgs e)
+    {
+        _runtime.HideOverlay();
+        StatusText.Text = "状态：悬浮窗已隐藏";
     }
 
     /// <summary>
@@ -291,44 +171,6 @@ public partial class MainWindow : FluentWindow
         StopButton.IsEnabled = !enabled;
     }
 
-    private void ShowOverlayButton_Click(object sender, RoutedEventArgs e)
-    {
-        EnsureOverlayWindow();
-        _overlayWindow?.Show();
-
-        StatusText.Text = "状态：悬浮窗已显示。";
-    }
-
-    private void HideOverlayButton_Click(object sender, RoutedEventArgs e)
-    {
-        _overlayWindow?.Hide();
-
-        StatusText.Text = "状态：悬浮窗已隐藏。";
-    }
-
-    private async void OverlayWindow_SendRequested(object? sender, string message)
-    {
-        var result = await _adapter.SendMessageAsync("测试群聊", message);
-
-        if (result.Success)
-        {
-            _overlayWindow?.SetReplyStatus("发送成功。下一次轮询会显示到消息列表。");
-            StatusText.Text = $"状态：Overlay 发送成功，时间 {DateTime.Now:HH:mm:ss}";
-        }
-        else
-        {
-            _overlayWindow?.SetReplyStatus($"发送失败：{result.ErrorMessage}");
-            StatusText.Text = $"状态：Overlay 发送失败：{result.ErrorMessage}";
-        }
-        // 发送后抢回焦点，防止焦点落在QQ窗口
-        await Task.Delay(150);
-        Dispatcher.Invoke(() =>
-        {
-            _overlayWindow?.Activate();
-            _overlayWindow?.FocusReplayInput();
-        });
-    }
-
     private void BackgroundOpacitySlider_ValueChanged(
     object sender,
     RoutedPropertyChangedEventArgs<double> e)
@@ -340,7 +182,7 @@ public partial class MainWindow : FluentWindow
             BackgroundOpacityValueText.Text = $"{_backgroundOpacity:P0}";
         }
 
-        _overlayWindow?.SetBackgroundOpacity(_backgroundOpacity);
+        _runtime.SetBackgroundOpacity(_backgroundOpacity);
 
         if (StatusText is not null)
         {
@@ -359,7 +201,7 @@ public partial class MainWindow : FluentWindow
             TextOpacityValueText.Text = $"{_textOpacity:P0}";
         }
 
-        _overlayWindow?.SetTextOpacity(_textOpacity);
+        _runtime.SetTextOpacity(_textOpacity);
 
         if (StatusText is not null)
         {
@@ -371,17 +213,12 @@ public partial class MainWindow : FluentWindow
     {
         if (StandaloneWindowPanel is null) return;
 
-        var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "微信"; //默认使用微信
-        //只有微信才显示独立窗口配置
+        var selected = (AdapterComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "QQ";
         StandaloneWindowPanel.Visibility = selected == "微信" ? Visibility.Visible : Visibility.Collapsed;
         WeChatCropPanel.Visibility = selected == "微信" ? Visibility.Visible : Visibility.Collapsed;
-
         QQPanel.Visibility = selected == "QQ" ? Visibility.Visible : Visibility.Collapsed;
 
-        //切换适配器
-        ReBuildAdapter(selected);
-        StatusText.Text = $"状态：已切换到 {selected} 适配器。";
-
+        _runtime.SwitchAdapter(selected);
     }
 
     private void StandaloneWindowCheckBox_Changed(object sender, RoutedEventArgs e)
@@ -404,26 +241,15 @@ public partial class MainWindow : FluentWindow
         ApplicationThemeManager.Apply(target);
 
         bool dark = target == ApplicationTheme.Dark;
-        _overlayWindow?.ApplyTheme(dark); // 同步给overlap
+        _runtime.ApplyTheme(dark); // 同步给overlap
         _settings.IsDarkTheme = dark; // 存入配置
         UpdateThemeButtonIcon(dark);
     }
 
     private void ToggleQQWindowButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_adapter is not QQAdapter qq) return;
-
-        if (qq.IsWindowHidden)
-        {
-            qq.RestoreWindow();
-            ToggleQQWindowButton.Content = "隐藏 QQ 窗口";
-        }
-        else
-        {
-            qq.HideMode = (QQWindowMover.QQHideMode)QQHideModeComboBox.SelectedIndex;  // 用当前选择
-            qq.HideWindow();
-            ToggleQQWindowButton.Content = "显示 QQ 窗口";
-        }
+        _runtime.ToggleQQWindow(QQHideModeComboBox.SelectedIndex);
+        ToggleQQWindowButton.Content = _runtime.IsQQWindowHidden ? "显示 QQ 窗口" : "隐藏 QQ 窗口";
     }
 
     private void UpdateThemeButtonIcon(bool dark)
@@ -437,7 +263,7 @@ public partial class MainWindow : FluentWindow
 
     private async void TryCaptureButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_adapter is not WeChatAdapter wechat)
+        if (_runtime.Adapter is not WeChatAdapter wechat)
         {
             StatusText.Text = "状态：试截图仅微信适配器可用";
             return;
@@ -511,7 +337,7 @@ public partial class MainWindow : FluentWindow
         using var service = new UpdateService(_settings);
         var result = await service.CheckAsync(UpdateService.CurrentVersion);
 
-        if(result != null)
+        if (result != null)
         {
             StatusText.Text = $"状态：发现新版本 v{result.Version}";
             var window = new UpdateWindow(result, service, skippedVersion =>
@@ -524,13 +350,13 @@ public partial class MainWindow : FluentWindow
             };
             window.ShowDialog();
         }
-        else if(service.LastError != null)
+        else if (service.LastError != null)
         {
             StatusText.Text = $"状态：检查更新失败 — {service.LastError}";
         }
         else
         {
-            StatusText.Text = "状态：已是最新版本 ✓";
+            StatusText.Text = $"状态：版本 {UpdateService.CurrentVersion} 已是最新版本 ✓";
         }
 
         CheckUpdateButton.IsEnabled = true;
@@ -539,10 +365,94 @@ public partial class MainWindow : FluentWindow
     protected override async void OnClosed(EventArgs e)
     {
         SaveCurrentSettings();          // 退出前兜底保存
-        await _monitorService.StopAsync();
-        (_adapter as QQAdapter)?.RestoreWindow(); // 退出前恢复QQ窗口
-        (_adapter as IDisposable)?.Dispose();
-        _overlayWindow?.Close();
+        await _runtime.ShutdownAsync();
         base.OnClosed(e);
+    }
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!_isReallyClosing)
+        {
+            e.Cancel = true;
+            Hide();
+        }
+        base.OnClosing(e);
+    }
+
+    /// <summary>
+    /// 托盘功能管理,指定调用函数
+    /// </summary>
+    private void InitTrayIcon()
+    {
+        var icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath!);
+
+        var menu = new WinForms.ContextMenuStrip();
+
+        // 监听开关
+        _monitorMenuItem = new WinForms.ToolStripMenuItem("开始监听");
+        _monitorMenuItem.Click += (_, _) => ToggleMonitorFromTray();
+        menu.Items.Add(_monitorMenuItem);
+
+        // 悬浮窗开关
+        _overlayMenuItem = new WinForms.ToolStripMenuItem("显示悬浮窗");
+        _overlayMenuItem.Click += (_, _) =>
+        {
+            _runtime.ShowOverlay();
+            _overlayMenuItem!.Text = "隐藏悬浮窗";
+        };
+        menu.Items.Add(_overlayMenuItem);
+
+        menu.Items.Add("显示主窗口", null, (_, _) => ShowFromTray());
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+        menu.Items.Add("退出 HideYourChat", null, (_, _) => ExitFromTray());
+
+        _trayIcon = new WinForms.NotifyIcon
+        {
+            Text = "HideYourChat",
+            Icon = icon,
+            ContextMenuStrip = menu,
+            Visible = true,
+        };
+
+        _trayIcon.DoubleClick += (_, _) => ShowFromTray();
+    }
+
+    private void ShowFromTray()
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private void ExitFromTray()
+    {
+        _isReallyClosing = true;
+        _trayIcon?.Dispose();
+        _trayIcon = null;
+        System.Windows.Application.Current.Shutdown();
+    }
+
+    private void ToggleMonitorFromTray()
+    {
+        if (_runtime.IsRunning) _ = StopMonitorFromTrayAsync();
+        else StartMonitorFromTray();
+    }
+
+    private async Task StopMonitorFromTrayAsync()
+    {
+        await _runtime.StopAsync();
+        SetConfigPanelEnabled(true);
+        ToggleQQWindowButton.Content = "显示 QQ 窗口";
+        if (_monitorMenuItem is not null) _monitorMenuItem.Text = "开始监听";
+    }
+
+    private void StartMonitorFromTray()
+    {
+        SaveCurrentSettings();
+        if (!_runtime.Start(_settings, _backgroundOpacity, _textOpacity))
+            return;
+        SetConfigPanelEnabled(false);
+        ToggleQQWindowButton.Content = _runtime.IsQQWindowHidden ? "显示 QQ 窗口" : "隐藏 QQ 窗口";
+        if (_monitorMenuItem is not null) _monitorMenuItem.Text = "停止监听";
+        if (_overlayMenuItem is not null) _overlayMenuItem.Text = "隐藏悬浮窗";
     }
 }

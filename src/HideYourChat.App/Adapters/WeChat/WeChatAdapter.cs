@@ -34,6 +34,7 @@ public sealed class WeChatAdapter : IChatAdapter, IDisposable
 
     // 是否监听独立聊天窗口(而不是主窗口)
     public bool UseStandaloneChatWindow { get; set; } = false;
+    public string CurrentSessionName {get; private set;} = "微信";
     public string StandaloneChatWindowTitle { get; set; } = ""; // 要监听的联系人名
 
     // 避免重复ocr

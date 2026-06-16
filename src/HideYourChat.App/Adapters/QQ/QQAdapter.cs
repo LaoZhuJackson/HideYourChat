@@ -14,6 +14,8 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
 
     private bool _dumpMode = false; // true是只导出树不读消息，调试用
 
+    public string CurrentSessionName {get; private set;} = "QQ";
+
     private IntPtr _hwnd;
     private QQWindowMover.Pos? _savedPos; //隐藏前的原位
     public bool IsWindowHidden { get; private set; }
@@ -36,6 +38,7 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
             return Task.FromResult<IReadOnlyList<ChatMessage>>([Info($"UIA 树已导出到 {path}")]);
         }
         var title = ExtractSessionTitle(mainWindow);
+        CurrentSessionName = title; // 记录当前会话名称
         bool isGroup = IsGroupChat(mainWindow);
         var messages = _reader.ReadLatestMessages(mainWindow, title, isGroup);
         return Task.FromResult(messages);
@@ -48,6 +51,14 @@ public sealed class QQAdapter : IChatAdapter, IDisposable
         var win = _windowLocator.FindMainWindow(_automation);
         if(win is null)
             return Task.FromResult(SendResult.Fail("qq-uia", "未找到 QQ 窗口"));
+        
+        var currentTitle = ExtractSessionTitle(win);
+        if(!string.IsNullOrWhiteSpace(CurrentSessionName) && currentTitle != CurrentSessionName)
+        {
+            return Task.FromResult(SendResult.Fail("qq-uia", $"会话已切换！当前是「{currentTitle}」，但消息来自「{CurrentSessionName}」。请重新打开目标会话"));
+        }
+
+        
         // 发到当前监视的会话(QQ 当前打开哪个会话就发哪个),sessionName 暂时忽略
         return Task.FromResult(_sender.Send(win, message));
     }

@@ -134,3 +134,4 @@ plugins/local/
 .wix
 release.ps1
 test-release-notes.ps1
+ROADMAP.md
