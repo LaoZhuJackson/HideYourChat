@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Windows;
 using HideYourChat.App.Core;
 using HideYourChat.App.Pages;
@@ -24,6 +24,7 @@ public partial class MainWindow : FluentWindow
     private WinForms.NotifyIcon? _trayIcon;
     private WinForms.ToolStripMenuItem? _monitorMenuItem;
     private WinForms.ToolStripMenuItem? _overlayMenuItem;
+    private WinForms.ToolStripMenuItem? _mainWindowMenuItem;
     private bool _isReallyClosing;
 
     public MainWindow()
@@ -40,6 +41,9 @@ public partial class MainWindow : FluentWindow
         // 订阅页面事件
         _homePage.StartRequested += OnStartRequested;
         _homePage.StopRequested += OnStopRequested;
+        _homePage.OverlayShown += () => { if (_overlayMenuItem is not null) _overlayMenuItem.Checked = true; };
+        _homePage.OverlayHidden += () => { if (_overlayMenuItem is not null) _overlayMenuItem.Checked = false; };
+
         _settingsPage.StatusChanged += text =>
             Dispatcher.Invoke(() => StatusText.Text = $"状态：{text}");
         _runtime.StatusChanged += (_, text) =>
@@ -47,6 +51,8 @@ public partial class MainWindow : FluentWindow
 
         // 导航事件
         foreach (Wpf.Ui.Controls.NavigationViewItem item in NavView.MenuItems)
+            item.Click += NavItem_Click;
+        foreach (Wpf.Ui.Controls.NavigationViewItem item in NavView.FooterMenuItems)
             item.Click += NavItem_Click;
 
         // 默认显示主页
@@ -68,7 +74,7 @@ public partial class MainWindow : FluentWindow
     {
         if (sender is Wpf.Ui.Controls.NavigationViewItem item)
         {
-            if(item.Tag is "theme")
+            if (item.Tag is "theme")
             {
                 ToggleTheme();
                 return;
@@ -110,22 +116,22 @@ public partial class MainWindow : FluentWindow
         if (!_runtime.Start(_settings, opacity, textOpacity))
             return;
         _homePage.SetRunningMode(true);
-        UpdateTrayMenuState();
+        SyncTrayMonitorState();
+        _homePage.RefreshQQButton();
     }
 
     private async void OnStopRequested()
     {
         await _runtime.StopAsync();
         _homePage.SetRunningMode(false);
-        UpdateTrayMenuState();
+        SyncTrayMonitorState();
+        _homePage.RefreshQQButton();
     }
 
-    private void UpdateTrayMenuState()
+    private void SyncTrayMonitorState()
     {
         if (_monitorMenuItem is not null)
             _monitorMenuItem.Text = _runtime.IsRunning ? "停止监听" : "开始监听";
-        if (_overlayMenuItem is not null)
-            _overlayMenuItem.Text = "显示悬浮窗";
     }
 
     // ═══════════════ 保存配置 ═══════════════
@@ -160,6 +166,7 @@ public partial class MainWindow : FluentWindow
 
         var menu = new WinForms.ContextMenuStrip();
 
+        // 监听开关
         _monitorMenuItem = new WinForms.ToolStripMenuItem("开始监听");
         _monitorMenuItem.Click += (_, _) =>
         {
@@ -168,21 +175,39 @@ public partial class MainWindow : FluentWindow
         };
         menu.Items.Add(_monitorMenuItem);
 
-        _overlayMenuItem = new WinForms.ToolStripMenuItem("显示悬浮窗");
-        _overlayMenuItem.Click += (_, _) =>
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+
+        // 悬浮窗 —— 勾选 = 可见
+        _overlayMenuItem = new WinForms.ToolStripMenuItem("悬浮窗可见")
         {
-            _runtime.ShowOverlay();
-            _overlayMenuItem!.Text = "隐藏悬浮窗";
+            CheckOnClick = true,
+            Checked = false,
+        };
+        _overlayMenuItem.CheckedChanged += (_, _) =>
+        {
+            if (_overlayMenuItem.Checked) _runtime.ShowOverlay();
+            else _runtime.HideOverlay();
         };
         menu.Items.Add(_overlayMenuItem);
 
-        menu.Items.Add(new WinForms.ToolStripSeparator());
-        menu.Items.Add("显示主窗口", null, (_, _) =>
+        // 主窗口 —— 勾选 = 可见
+        _mainWindowMenuItem = new WinForms.ToolStripMenuItem("主窗口可见")
         {
-            Show();
-            WindowState = WindowState.Normal;
-            Activate();
-        });
+            CheckOnClick = true,
+            Checked = true,
+        };
+        _mainWindowMenuItem.CheckedChanged += (_, _) =>
+        {
+            if (_mainWindowMenuItem.Checked)
+            {
+                Show();
+                WindowState = WindowState.Normal;
+                Activate();
+            }
+            else Hide();
+        };
+        menu.Items.Add(_mainWindowMenuItem);
+
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add("退出 HideYourChat", null, (_, _) =>
         {
@@ -201,20 +226,22 @@ public partial class MainWindow : FluentWindow
         };
         _trayIcon.DoubleClick += (_, _) =>
         {
-            Show();
-            WindowState = WindowState.Normal;
-            Activate();
+            if (IsVisible) Hide();
+            else { Show(); WindowState = WindowState.Normal; Activate(); }
+            if (_mainWindowMenuItem is not null) _mainWindowMenuItem.Checked = IsVisible;
         };
     }
 
     // ═══════════════ 窗口生命周期 ═══════════════
+
     protected override void OnClosing(CancelEventArgs e)
     {
-        if(_settings.CloseToExit) _isReallyClosing = true;
+        if (_settings.CloseToExit) _isReallyClosing = true;
         if (!_isReallyClosing)
         {
             e.Cancel = true;
             Hide();
+            if (_mainWindowMenuItem is not null) _mainWindowMenuItem.Checked = false;
         }
         base.OnClosing(e);
     }
@@ -224,17 +251,19 @@ public partial class MainWindow : FluentWindow
         SaveCurrentSettings();
         await _runtime.ShutdownAsync();
         _trayIcon?.Dispose();
-        if(_settings.CloseToExit)
+        if (_settings.CloseToExit)
             Application.Current.Shutdown();
-    }
-
-    private void UpdateThemeButtonIcon(bool dark)
-    {
-        // 主页里的主题按钮图标会自己更新，这里只记录初始状态
     }
 
     public void SetStatus(string text)
     {
         Dispatcher.Invoke(() => StatusText.Text = $"状态：{text}");
+    }
+
+    private void UpdateThemeButtonIcon(bool dark)
+    {
+        ThemeNavItem.Icon = new SymbolIcon(
+            dark ? SymbolRegular.WeatherMoon24
+                 : SymbolRegular.WeatherSunny24);
     }
 }

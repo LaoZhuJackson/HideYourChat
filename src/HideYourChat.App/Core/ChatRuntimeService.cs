@@ -139,7 +139,11 @@ public sealed class ChatRuntimeService : IDisposable
     //  Overlay
     // ═══════════════════════════════════════════
 
-    public void ShowOverlay() => _overlayWindow?.Show();
+    public void ShowOverlay()
+    {
+        EnsureOverlayWindow(null);
+        _overlayWindow?.Show();
+    }
 
     public void HideOverlay() => _overlayWindow?.Hide();
 

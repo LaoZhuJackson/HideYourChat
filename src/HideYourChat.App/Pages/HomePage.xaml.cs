@@ -19,6 +19,9 @@ public partial class HomePage : UserControl
     private bool _initialized;
     private System.Drawing.Bitmap? _lastCropPreview;
 
+    public event Action? OverlayShown;
+    public event Action? OverlayHidden;
+
     public HomePage(ChatRuntimeService runtime, AppSettings settings)
     {
         InitializeComponent();
@@ -108,10 +111,16 @@ public partial class HomePage : UserControl
         => StopRequested?.Invoke();
 
     private void ShowOverlayButton_Click(object sender, RoutedEventArgs e)
-        => _runtime.ShowOverlay();
+    {
+        _runtime.ShowOverlay();
+        OverlayShown?.Invoke();
+    }
 
     private void HideOverlayButton_Click(object sender, RoutedEventArgs e)
-        => _runtime.HideOverlay();
+    {
+        _runtime.HideOverlay();
+        OverlayHidden?.Invoke();
+    }
 
     private void ToggleQQWindowButton_Click(object sender, RoutedEventArgs e)
     {
@@ -125,6 +134,12 @@ public partial class HomePage : UserControl
         if (!_initialized) return;
         ContactNameBox.IsEnabled = StandaloneWindowCheckBox.IsChecked == true;
         if (StandaloneWindowCheckBox.IsChecked != true) ContactNameBox.Clear();
+    }
+
+    public void RefreshQQButton()
+    {
+        if(_runtime.Adapter is QQAdapter)
+            ToggleQQWindowButton.Content = _runtime.IsQQWindowHidden ? "显示 QQ 窗口" : "隐藏 QQ 窗口";
     }
 
     // ═══════════════ 适配器切换 ═══════════════
