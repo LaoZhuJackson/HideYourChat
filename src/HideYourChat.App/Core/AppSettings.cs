@@ -28,4 +28,5 @@ public sealed class AppSettings
     public int ProxyPort {get;set;} = 0; // 如 7890，0 表示不走代理
     public string GitHubToken{get;set;} = "";
     public bool CloseToExit { get; set; } = false; // true = 关窗口直接退出，false = 缩到托盘
+    public int MaxMessageCount {get; set;} = 30; // 悬浮窗显示的消息条数上限
 }

@@ -16,6 +16,8 @@ public partial class OverlayWindow : Window
     private double _lastExpandedWidth = 480;
     private double _lastExpandedHeight = 380;
 
+    public int MaxMessages { get; set; } = 30;
+
     private double _backgroundOpacity = 0.80;
     private double _textOpacity = 1.00;
     private bool _isDark = true;
@@ -93,7 +95,7 @@ public partial class OverlayWindow : Window
             Messages.Add(message);
         }
 
-        while (Messages.Count > 8)
+        while (Messages.Count > MaxMessages)
         {
             Messages.RemoveAt(0);
         }

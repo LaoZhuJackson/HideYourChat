@@ -173,6 +173,7 @@ public sealed class ChatRuntimeService : IDisposable
             _overlayWindow.ApplyPersistedBounds(
                 settings.OverlayLeft, settings.OverlayTop,
                 settings.OverlayWidth, settings.OverlayHeight);
+            _overlayWindow.MaxMessages = settings.MaxMessageCount; // 设置最大消息上限
         }
     }
 

@@ -22,11 +22,13 @@ public partial class SettingsPage : UserControl
     public void ApplySettingsToUi()
     {
         CloseToExitCheckBox.IsChecked = _settings.CloseToExit;
+        MaxMessageCountBox.Value = _settings.MaxMessageCount;
     }
 
     public void SaveToSettings()
     {
         _settings.CloseToExit = CloseToExitCheckBox.IsChecked == true;
+        _settings.MaxMessageCount = (int)(MaxMessageCountBox.Value ?? 30);
     }
 
     public event Action<string>? StatusChanged;
