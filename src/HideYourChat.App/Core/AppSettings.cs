@@ -27,4 +27,5 @@ public sealed class AppSettings
     public string ProxyHost { get; set; } = "127.0.0.1";
     public int ProxyPort {get;set;} = 0; // 如 7890，0 表示不走代理
     public string GitHubToken{get;set;} = "";
+    public bool CloseToExit { get; set; } = false; // true = 关窗口直接退出，false = 缩到托盘
 }

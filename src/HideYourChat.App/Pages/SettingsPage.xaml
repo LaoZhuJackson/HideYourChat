@@ -1,0 +1,30 @@
+<UserControl x:Class="HideYourChat.App.Pages.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml">
+        <StackPanel Margin="0,4,0,0">
+
+                <GroupBox Header="通用"
+                          Margin="0,0,0,16">
+                        <StackPanel Margin="4">
+                                <CheckBox x:Name="CloseToExitCheckBox"
+                                          Content="关闭窗口直接退出程序"
+                                          Checked="CloseToExitCheckBox_Changed"
+                                          Unchecked="CloseToExitCheckBox_Changed"/>
+                        </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="更新"
+                          Margin="0,0,0,16">
+                        <StackPanel Margin="4">
+                                <ui:Button x:Name="CheckUpdateButton"
+                                           Content="检查更新"
+                                           Icon="{ui:SymbolIcon Alert24}"
+                                           Height="34"
+                                           HorizontalAlignment="Left"
+                                           Click="CheckUpdateButton_Click"/>
+                        </StackPanel>
+                </GroupBox>
+
+        </StackPanel>
+</UserControl>
