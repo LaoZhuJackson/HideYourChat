@@ -23,6 +23,7 @@ public partial class SettingsPage : UserControl
     {
         CloseToExitCheckBox.IsChecked = _settings.CloseToExit;
         MaxMessageCountBox.Value = _settings.MaxMessageCount;
+        CurrentVersionText.Text = $"当前版本：v{UpdateService.CurrentVersion}";
     }
 
     public void SaveToSettings()

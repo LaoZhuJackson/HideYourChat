@@ -25,14 +25,20 @@
                 </GroupBox>
 
                 <GroupBox Header="更新"
-                          Margin="0,0,0,16">
+                                Margin="0,0,0,16">
                         <StackPanel Margin="4">
-                                <ui:Button x:Name="CheckUpdateButton"
-                                           Content="检查更新"
-                                           Icon="{ui:SymbolIcon Alert24}"
-                                           Height="34"
-                                           HorizontalAlignment="Left"
-                                           Click="CheckUpdateButton_Click"/>
+                                <WrapPanel>
+                                        <ui:Button x:Name="CheckUpdateButton"
+                                                        Content="检查更新"
+                                                   Icon="{ui:SymbolIcon Alert24}"
+                                                   Height="34"
+                                                        HorizontalAlignment="Left"
+                                                   Click="CheckUpdateButton_Click"/>
+                                        <ui:TextBlock x:Name="CurrentVersionText"
+                                                      VerticalAlignment="Center"
+                                                      Margin="12,0,0,0"
+                                                      Foreground="{ui:ThemeResource TextFillColorSecondaryBrush}"/>
+                                </WrapPanel>
                         </StackPanel>
                 </GroupBox>
 
