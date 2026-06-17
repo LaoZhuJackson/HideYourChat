@@ -7,7 +7,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>..\..\assets\icons\icon.ico</ApplicationIcon>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="..\..\assets\icons\icon_no_background.png">
@@ -16,16 +16,16 @@
     <PackageReference Include="FlaUI.Core" Version="5.0.0" />
     <PackageReference Include="FlaUI.UIA3" Version="5.0.0" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
-    <!-- PaddleOCR 閹垫顓哥仦?-->
+    <!-- PaddleOCR 闁瑰灚顭囬鍝ヤ沪?-->
     <PackageReference Include="Sdcb.PaddleOCR" Version="3.0.1" />
-    <!-- 閺堫剙婀寸粋鑽ゅ殠娑擃厽鏋冨Ο鈥崇€?閸愬懎绁?閸忓秳绗呮潪? -->
+    <!-- 闁哄牜鍓欏﹢瀵哥矉閼姐倕娈犲☉鎿冨幗閺嬪啫螣閳ュ磭鈧?闁告劕鎳庣粊?闁稿繐绉崇粭鍛姜? -->
     <PackageReference Include="Sdcb.PaddleOCR.Models.Local" Version="3.0.1" />
-    <!-- Windows x64 CPU 閸樼喓鏁撻幒銊ф倞鏉╂劘顢戦弮?娴ｆ挾袧婢?閸戠姷娅?MB) -->
+    <!-- Windows x64 CPU 闁告鍠撻弫鎾诲箳閵娧勫€為弶鈺傚姌椤㈡垿寮?濞达絾鎸捐ⅶ濠?闁告垹濮峰▍?MB) -->
     <PackageReference Include="Sdcb.PaddleInference.runtime.win64.mkl" Version="3.0.0.36" />
-    <!-- OpenCvSharp 閻?Windows 閸樼喓鏁撴潻鎰攽閺?Sdcb.PaddleOCR 娓氭繆绂?OpenCvSharp,娴?native 鏉╂劘顢戦弮鎯邦洣閺勬儳绱￠崝? -->
+    <!-- OpenCvSharp 闁?Windows 闁告鍠撻弫鎾存交閹邦垼鏀介柡?Sdcb.PaddleOCR 濞撴碍绻嗙粋?OpenCvSharp,濞?native 閺夆晜鍔橀、鎴﹀籍閹偊娲ｉ柡鍕劤缁憋繝宕? -->
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20241107" />
     <PackageReference Include="wpf-ui" Version="4.0.0" />
-    <!-- 閺冦儱绻旂化鑽ょ埠 -->
+    <!-- 闁哄啨鍎辩换鏃傚寲閼姐倗鍩?-->
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
